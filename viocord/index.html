@@ -3,56 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Self-Learning Planner - Viocord</title>
+    <title>배경색 바꾸기 버튼</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="app">
-        <aside class="sidebar">
-            <div class="logo">VIOCORD AI</div>
-            <nav>
-                <ul>
-                    <li class="active">대시보드</li>
-                    <li>학습 계획</li>
-                    <li>AI 분석</li>
-                    <li>설정</li>
-                </ul>
-            </nav>
-        </aside>
-        <main class="content">
-            <header>
-                <h1>오늘의 학습 계획</h1>
-                <p>AI가 분석한 최적의 학습 경로입니다.</p>
-            </header>
-            <section class="planner-grid">
-                <div class="card ai-recommendation">
-                    <h3>AI 추천 학습</h3>
-                    <p id="ai-text">로딩 중...</p>
-                </div>
-                <div class="card todo-list">
-                    <h3>할 일 목록</h3>
-                    <ul id="todo-items">
-                        <li><input type="checkbox"> 자료구조 강의 시청</li>
-                        <li><input type="checkbox"> 백준 문제 3개 풀기</li>
-                    </ul>
-                </div>
-            </section>
-        </main>
-    </div>
+    <main class="container">
+        <h1>배경색을 바꿔보세요!</h1>
+        <button id="color-btn">배경색 바꾸기</button>
+        <p id="color-code">현재 배경색: #f0f2f5</p>
+    </main>
 
-    <!-- Gemini AI 공통 라이브러리 연결 -->
-    <script src="GeminiPlanner.js"></script>
-    <script>
-        // AI 라이브러리 사용 예시
-        const planner = new GeminiPlanner();
-        
-        // 1. 추천 문구 가져오기
-        planner.getRecommendation("알고리즘 기초").then(res => {
-            document.getElementById('ai-text').innerText = res;
-        });
-
-        // 2. 할 일 목록 자동 생성 (필요 시 호출 가능)
-        // planner.generateTodoList("React 마스터").then(list => { ... });
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
