@@ -68,7 +68,7 @@
                             <div class="time-picker">
                                 <span class="label">시작</span>
                                 <input type="number" id="start-h" list="hours" min="0" max="12" placeholder="시">
-                                <input type="number" id="start-m" list="minutes" min="0" max="60" placeholder="분">
+                                <input type="number" id="start-m" list="minutes" min="0" max="60" step="1" placeholder="분">
                                 <select id="start-ap">
                                     <option value="AM">오전</option>
                                     <option value="PM">오후</option>
@@ -79,7 +79,7 @@
                             <div class="time-picker">
                                 <span class="label">종료</span>
                                 <input type="number" id="end-h" list="hours" min="0" max="12" placeholder="시">
-                                <input type="number" id="end-m" list="minutes" min="0" max="60" placeholder="분">
+                                <input type="number" id="end-m" list="minutes" min="0" max="60" step="1" placeholder="분">
                                 <select id="end-ap">
                                     <option value="AM">오전</option>
                                     <option value="PM">오후</option>
@@ -96,8 +96,10 @@
                             <option value="12"></option>
                         </datalist>
                         <datalist id="minutes">
-                            <option value="00"></option><option value="10"></option><option value="20"></option>
-                            <option value="30"></option><option value="40"></option><option value="50"></option>
+                            <option value="00"></option><option value="05"></option><option value="10"></option>
+                            <option value="15"></option><option value="20"></option><option value="25"></option>
+                            <option value="30"></option><option value="35"></option><option value="40"></option>
+                            <option value="45"></option><option value="50"></option><option value="55"></option>
                             <option value="60"></option>
                         </datalist>
                         <button type="submit" class="secondary-btn">일정 추가</button>
@@ -150,6 +152,15 @@
                         <p class="hint">키는 브라우저 로컬 저장소에만 안전하게 보관됩니다.</p>
                     </div>
                     <button id="save-settings-btn" class="secondary-btn">설정 저장</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+        <button id="save-settings-btn" class="secondary-btn">설정 저장</button>
                 </div>
             </section>
         </main>

@@ -26,6 +26,35 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    const quotes = [
+        "성공은 매일 반복되는 작은 노력의 합산입니다.",
+        "지금 공부하면 꿈을 이루지만, 지금 자면 꿈을 꾼다.",
+        "노력은 결코 배신하지 않는다.",
+        "오늘 걷지 않으면 내일은 뛰어야 한다.",
+        "가장 늦었다고 생각할 때가 가장 빠를 때다.",
+        "당신의 노력이 당신의 운명을 만든다.",
+        "천재는 1%의 영감과 99%의 노력으로 만들어진다."
+    ];
+
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const loadingQuote = document.getElementById('loading-quote');
+
+    function showLoading() {
+        loadingQuote.innerText = quotes[Math.floor(Math.random() * quotes.length)];
+        loadingOverlay.classList.remove('hidden');
+    }
+
+    function hideLoading() {
+        loadingOverlay.classList.add('hidden');
+    }
+
+    // AI 버튼 클릭 시 테스트용 (3단계에서 실제 API 연결 시 사용)
+    document.getElementById('generate-ai-btn').addEventListener('click', () => {
+        showLoading();
+        // 3단계 연동 전 시뮬레이션
+        setTimeout(hideLoading, 3000);
+    });
+
     // 2. 캘린더 그리드 생성
     const calendarGrid = document.getElementById('calendar-grid');
     const days = ['시간', '일', '월', '화', '수', '목', '금', '토'];

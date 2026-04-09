@@ -45,6 +45,58 @@ body {
     height: 100vh;
 }
 
+/* 로딩 오버레이 */
+#loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-main);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    transition: opacity 0.5s;
+}
+
+#loading-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.loader-content {
+    max-width: 80%;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid var(--border);
+    border-top: 5px solid var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 2rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+#loading-quote {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: var(--text-main);
+}
+
+.loading-sub {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+}
+
 /* 사이드바 */
 .sidebar {
     width: 260px;
@@ -184,6 +236,52 @@ h1 {
     margin-bottom: 1.5rem;
 }
 
+.form-row.time-input-row {
+    grid-template-columns: 120px 1fr 1fr;
+    align-items: center;
+}
+
+.time-picker {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--input-bg);
+    padding: 5px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.time-picker .label {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-right: 5px;
+    white-space: nowrap;
+}
+
+.time-picker input {
+    width: 50px;
+    padding: 5px;
+    text-align: center;
+    border: none;
+    background: transparent;
+    color: var(--text-main);
+}
+
+.time-picker select {
+    width: 65px;
+    padding: 5px;
+    border: none;
+    background: transparent;
+    font-size: 0.85rem;
+    color: var(--text-main);
+}
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 input, select {
     width: 100%;
     background: var(--input-bg);
@@ -197,26 +295,6 @@ input, select {
 
 input:focus {
     border-color: var(--accent);
-}
-
-/* 테마 선택 옵션 */
-.theme-options {
-    display: flex;
-    gap: 20px;
-    margin-top: 5px;
-}
-
-.radio-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    font-size: 0.95rem;
-    color: var(--text-main);
-}
-
-.radio-label input {
-    width: auto;
 }
 
 /* 캘린더 그리드 */
@@ -271,6 +349,9 @@ input:focus {
     font-weight: 500;
     overflow: hidden;
     z-index: 10;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .fixed-event {
@@ -291,13 +372,34 @@ body.light-theme .fixed-event {
     color: #d8b4fe;
 }
 
-.hint {
-    margin-top: 0.5rem;
-    font-size: 0.8rem;
-    color: var(--text-dim);
+.event-checkbox {
+    margin-right: 5px;
 }
 
-/* 리스트 컨테이너 */
+/* 모바일 반응형 */
+@media (max-width: 1024px) {
+    .sidebar { width: 80px; padding: 2rem 0.5rem; }
+    .logo, .nav-item span:not(.icon) { display: none; }
+    .nav-item { justify-content: center; }
+    .content { padding: 1.5rem; }
+}
+
+@media (max-width: 768px) {
+    #app { flex-direction: column; }
+    .sidebar {
+        width: 100%; height: 60px; flex-direction: row;
+        padding: 0 1rem; border-right: none; border-bottom: 1px solid var(--border);
+        justify-content: space-around;
+    }
+    nav ul { display: flex; width: 100%; justify-content: space-around; }
+    .nav-item { margin-bottom: 0; }
+    .content { padding: 1rem; }
+    .calendar-container { overflow-x: auto; }
+    .form-row.time-input-row { grid-template-columns: 1fr; gap: 0.5rem; }
+    header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+}
+
+/* 리스트 스타일 */
 .list-container {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -313,21 +415,6 @@ body.light-theme .fixed-event {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    transition: transform 0.2s;
-}
-
-.list-item:hover {
-    transform: translateY(-2px);
-}
-
-.item-info h4 {
-    margin-bottom: 4px;
-    font-size: 1rem;
-}
-
-.item-info p {
-    color: var(--text-dim);
-    font-size: 0.85rem;
 }
 
 .delete-btn {
@@ -337,13 +424,6 @@ body.light-theme .fixed-event {
     padding: 0.5rem 0.8rem;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 0.8rem;
-    transition: 0.2s;
-}
-
-.delete-btn:hover {
-    background: #ef4444;
-    color: white;
 }
 
 .edit-btn {
@@ -353,18 +433,5 @@ body.light-theme .fixed-event {
     padding: 0.5rem 0.8rem;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 0.8rem;
     margin-right: 8px;
-    transition: 0.2s;
-}
-
-.edit-btn:hover {
-    background: var(--accent);
-    color: white;
-}
-
-/* 수정 중인 폼 상태 */
-.updating-form {
-    border-color: var(--accent);
-    box-shadow: 0 0 15px rgba(var(--accent), 0.2);
 }
