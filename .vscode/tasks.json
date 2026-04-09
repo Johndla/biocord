@@ -1,0 +1,31 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Gemini: 현재 파일 분석 및 학습 가이드 생성",
+            "type": "shell",
+            "command": "gemini \"현재 파일(${file})의 내용을 보고, 이 학습 플래너(Viocord)에 추가하면 좋을 만한 새로운 AI 기능을 한 가지만 제안해줘.\"",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Gemini: UI 디자인 리뷰",
+            "type": "shell",
+            "command": "gemini \"viocord/style.css 파일을 분석해서, AI 중심의 플래너 앱답게 더 미래지향적인 색상 조합이나 효과를 3가지 추천해줘.\"",
+            "problemMatcher": []
+        },
+        {
+            "label": "Gemini: 할 일 목록 아이디어",
+            "type": "shell",
+            "command": "gemini \"알고리즘 공부를 위해 오늘 꼭 해야 할 실무적인 할 일 5가지를 추천해줘.\"",
+            "problemMatcher": []
+        }
+    ]
+}
