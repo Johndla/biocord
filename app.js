@@ -62,21 +62,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initCalendar();
 
-    // 3. 설정 저장 기능 (API 키 등)
-    const saveSettingsBtn = document.getElementById('save-settings-btn');
+    // 3. 설정 및 API 키 자동 저장
     const apiKeyInput = document.getElementById('api-key');
 
     // 초기 값 로드
     apiKeyInput.value = localStorage.getItem('gemini_api_key') || '';
 
-    saveSettingsBtn.addEventListener('click', () => {
+    apiKeyInput.addEventListener('input', () => {
         const key = apiKeyInput.value.trim();
         localStorage.setItem('gemini_api_key', key);
-        alert('설정이 저장되었습니다!');
     });
 
-    // 4. 학습 목표 저장
-    const saveGoalsBtn = document.getElementById('save-goals-btn');
+    // 4. 학습 목표 자동 저장
     const targetHoursInput = document.getElementById('target-hours');
     const targetSubjectsInput = document.getElementById('target-subjects');
 
@@ -84,9 +81,22 @@ document.addEventListener('DOMContentLoaded', () => {
     targetHoursInput.value = localStorage.getItem('study_target_hours') || '4';
     targetSubjectsInput.value = localStorage.getItem('study_target_subjects') || '';
 
-    saveGoalsBtn.addEventListener('click', () => {
-        localStorage.setItem('study_target_hours', targetHoursInput.value);
-        localStorage.setItem('study_target_subjects', targetSubjectsInput.value);
-        alert('학습 목표가 저장되었습니다!');
+    [targetHoursInput, targetSubjectsInput].forEach(input => {
+        input.addEventListener('input', () => {
+            localStorage.setItem('study_target_hours', targetHoursInput.value);
+            localStorage.setItem('study_target_subjects', targetSubjectsInput.value);
+        });
+    });
+
+    // 저장 버튼 클릭 시 시각적 피드백만 제공 (자동 저장이므로)
+    document.querySelectorAll('.secondary-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            if (e.target.id === 'save-settings-btn' || e.target.id === 'save-goals-btn') {
+                e.target.innerText = '저장됨! ✓';
+                setTimeout(() => {
+                    e.target.innerText = e.target.id === 'save-settings-btn' ? '설정 저장' : '목표 저장';
+                }, 2000);
+            }
+        });
     });
 });
