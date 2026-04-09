@@ -345,3 +345,26 @@ body.light-theme .fixed-event {
     background: #ef4444;
     color: white;
 }
+
+.edit-btn {
+    background: rgba(56, 189, 248, 0.1);
+    color: var(--accent);
+    border: none;
+    padding: 0.5rem 0.8rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    margin-right: 8px;
+    transition: 0.2s;
+}
+
+.edit-btn:hover {
+    background: var(--accent);
+    color: white;
+}
+
+/* 수정 중인 폼 상태 */
+.updating-form {
+    border-color: var(--accent);
+    box-shadow: 0 0 15px rgba(var(--accent), 0.2);
+}

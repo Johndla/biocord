@@ -138,13 +138,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // 5. 고정 시간표 로직
     const timetableForm = document.getElementById('timetable-form');
     const eventList = document.getElementById('event-list');
+    const submitBtn = timetableForm.querySelector('button[type="submit"]');
     let events = JSON.parse(localStorage.getItem('timetable_events')) || [];
+    let editIndex = -1; // -1이면 추가 모드, 0 이상이면 수정 모드
 
     function renderTimetable() {
         // 대시보드 그리드 초기화 (기존 이벤트 블록 제거)
         document.querySelectorAll('.event-block').forEach(el => el.remove());
 
-        // 캘린더 그리드에 표시
+        // 캘린더 그리드에 표시 (생략 방지용 전체 표시 로직)
         events.forEach(event => {
             const startHour = parseInt(event.start.split(':')[0]);
             const startMin = parseInt(event.start.split(':')[1]);
@@ -157,7 +159,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 block.className = 'event-block fixed-event';
                 block.innerText = event.name;
 
-                // 위치 계산 (60px per hour)
                 const topOffset = (startMin / 60) * 60;
                 const height = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60 * 60;
 
@@ -170,9 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     parseInt(cell.dataset.time.split(':')[0]) === startHour
                 );
 
-                if (targetCell) {
-                    targetCell.appendChild(block);
-                }
+                if (targetCell) targetCell.appendChild(block);
             }
         });
 
@@ -188,9 +187,32 @@ document.addEventListener('DOMContentLoaded', () => {
                     <h4>${event.name}</h4>
                     <p>${dayNames[event.day]} | ${event.start} ~ ${event.end}</p>
                 </div>
-                <button class="delete-btn" data-index="${index}">삭제</button>
+                <div class="item-actions">
+                    <button class="edit-btn" data-index="${index}">수정</button>
+                    <button class="delete-btn" data-index="${index}">삭제</button>
+                </div>
             `;
             eventList.appendChild(item);
+        });
+
+        // 수정 이벤트 연결
+        document.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const index = parseInt(e.target.dataset.index);
+                const event = events[index];
+                
+                // 폼에 데이터 채우기
+                document.getElementById('event-name').value = event.name;
+                document.getElementById('event-day').value = event.day;
+                document.getElementById('event-start').value = event.start;
+                document.getElementById('event-end').value = event.end;
+
+                // 수정 모드 상태로 변경
+                editIndex = index;
+                submitBtn.innerText = '수정 완료';
+                submitBtn.classList.add('primary-btn');
+                timetableForm.scrollIntoView({ behavior: 'smooth' });
+            });
         });
 
         // 삭제 이벤트 연결
@@ -200,24 +222,41 @@ document.addEventListener('DOMContentLoaded', () => {
                 events.splice(index, 1);
                 localStorage.setItem('timetable_events', JSON.stringify(events));
                 renderTimetable();
+                // 수정 중이었다면 초기화
+                resetForm();
             });
         });
     }
 
+    function resetForm() {
+        timetableForm.reset();
+        editIndex = -1;
+        submitBtn.innerText = '일정 추가';
+        submitBtn.classList.remove('primary-btn');
+    }
+
     timetableForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        const newEvent = {
+        const eventData = {
             name: document.getElementById('event-name').value,
             day: document.getElementById('event-day').value,
             start: document.getElementById('event-start').value,
             end: document.getElementById('event-end').value
         };
 
-        events.push(newEvent);
+        if (editIndex > -1) {
+            // 수정 모드
+            events[editIndex] = eventData;
+            alert('일정이 수정되었습니다!');
+        } else {
+            // 추가 모드
+            events.push(eventData);
+            alert('일정이 추가되었습니다!');
+        }
+
         localStorage.setItem('timetable_events', JSON.stringify(events));
-        timetableForm.reset();
+        resetForm();
         renderTimetable();
-        alert('일정이 추가되었습니다!');
     });
 
     renderTimetable();
