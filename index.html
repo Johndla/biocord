@@ -8,7 +8,7 @@
 </head>
 <body class="dark-theme">
     <div id="app">
-        <!-- 로딩 오버레이 (공부 자극 문구) -->
+        <!-- 로딩 오버레이 -->
         <div id="loading-overlay" class="hidden">
             <div class="loader-content">
                 <div class="spinner"></div>
@@ -50,7 +50,6 @@
                     <p>나의 일주일 고정 일정을 관리하세요.</p>
                 </header>
                 
-                <!-- AI 자동 인식 추가 -->
                 <div class="form-card">
                     <div class="form-group">
                         <label>AI 자동 시간표 추가 (베타)</label>
@@ -62,33 +61,43 @@
 
                 <div class="form-card">
                     <form id="timetable-form">
-                        <input type="text" id="event-name" placeholder="일정 이름 (예: 자료구조 강의)" required>
+                        <div class="form-group">
+                            <label>일정 이름</label>
+                            <input type="text" id="event-name" placeholder="예: 자료구조 강의" required>
+                        </div>
                         <div class="form-row time-input-row">
-                            <select id="event-day" required>
-                                <option value="1">월요일</option><option value="2">화요일</option>
-                                <option value="3">수요일</option><option value="4">목요일</option>
-                                <option value="5">금요일</option><option value="6">토요일</option>
-                                <option value="0">일요일</option>
-                            </select>
-                            
-                            <div class="time-picker">
-                                <span class="label">시작</span>
-                                <input type="number" id="start-h" min="0" max="12" value="9">
-                                <span>:</span>
-                                <input type="number" id="start-m" min="0" max="59" value="00" step="1">
-                                <select id="start-ap">
-                                    <option value="AM">오전</option><option value="PM">오후</option>
+                            <div class="form-group">
+                                <label>요일</label>
+                                <select id="event-day" required>
+                                    <option value="1">월요일</option><option value="2">화요일</option>
+                                    <option value="3">수요일</option><option value="4">목요일</option>
+                                    <option value="5">금요일</option><option value="6">토요일</option>
+                                    <option value="0">일요일</option>
                                 </select>
                             </div>
+                            
+                            <div class="form-group">
+                                <label>시작 시간</label>
+                                <div class="time-picker">
+                                    <select id="start-h" required></select>
+                                    <span>:</span>
+                                    <select id="start-m" required></select>
+                                    <select id="start-ap">
+                                        <option value="AM">오전</option><option value="PM">오후</option>
+                                    </select>
+                                </div>
+                            </div>
 
-                            <div class="time-picker">
-                                <span class="label">종료</span>
-                                <input type="number" id="end-h" min="0" max="12" value="10">
-                                <span>:</span>
-                                <input type="number" id="end-m" min="0" max="59" value="00" step="1">
-                                <select id="end-ap">
-                                    <option value="AM">오전</option><option value="PM">오후</option>
-                                </select>
+                            <div class="form-group">
+                                <label>종료 시간</label>
+                                <div class="time-picker">
+                                    <select id="end-h" required></select>
+                                    <span>:</span>
+                                    <select id="end-m" required></select>
+                                    <select id="end-ap">
+                                        <option value="AM">오전</option><option value="PM">오후</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                         <button type="submit" id="timetable-submit-btn" class="secondary-btn">일정 수동 추가</button>
@@ -105,7 +114,7 @@
                 </header>
                 <div class="form-card">
                     <div class="form-group">
-                        <label>최종 학습 목표 (AI가 세분화해 드립니다)</label>
+                        <label>최종 학습 목표</label>
                         <input type="text" id="final-goal" placeholder="예: 토익 990점 달성, 리액트 마스터하기 등">
                     </div>
                     <div class="form-group">
@@ -146,7 +155,6 @@
                     <div class="form-group">
                         <label>Gemini API Key</label>
                         <input type="password" id="api-key" placeholder="API 키를 입력하세요">
-                        <p class="hint">Gemini API 키가 있어야 AI 기능을 사용할 수 있습니다.</p>
                     </div>
                     <button id="save-settings-btn" class="secondary-btn">설정 저장</button>
                 </div>
