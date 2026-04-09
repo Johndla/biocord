@@ -134,4 +134,91 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    // 5. 고정 시간표 로직
+    const timetableForm = document.getElementById('timetable-form');
+    const eventList = document.getElementById('event-list');
+    let events = JSON.parse(localStorage.getItem('timetable_events')) || [];
+
+    function renderTimetable() {
+        // 대시보드 그리드 초기화 (기존 이벤트 블록 제거)
+        document.querySelectorAll('.event-block').forEach(el => el.remove());
+
+        // 캘린더 그리드에 표시
+        events.forEach(event => {
+            const startHour = parseInt(event.start.split(':')[0]);
+            const startMin = parseInt(event.start.split(':')[1]);
+            const endHour = parseInt(event.end.split(':')[0]);
+            const endMin = parseInt(event.end.split(':')[1]);
+
+            if (startHour >= 8 && startHour < 24) {
+                const dayIndex = parseInt(event.day);
+                const block = document.createElement('div');
+                block.className = 'event-block fixed-event';
+                block.innerText = event.name;
+
+                // 위치 계산 (60px per hour)
+                const topOffset = (startMin / 60) * 60;
+                const height = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60 * 60;
+
+                block.style.top = `${topOffset}px`;
+                block.style.height = `${height}px`;
+
+                const cells = calendarGrid.querySelectorAll('.grid-cell');
+                const targetCell = Array.from(cells).find(cell => 
+                    parseInt(cell.dataset.day) === dayIndex && 
+                    parseInt(cell.dataset.time.split(':')[0]) === startHour
+                );
+
+                if (targetCell) {
+                    targetCell.appendChild(block);
+                }
+            }
+        });
+
+        // 설정 탭의 리스트 표시
+        eventList.innerHTML = '';
+        const dayNames = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+        
+        events.forEach((event, index) => {
+            const item = document.createElement('div');
+            item.className = 'list-item';
+            item.innerHTML = `
+                <div class="item-info">
+                    <h4>${event.name}</h4>
+                    <p>${dayNames[event.day]} | ${event.start} ~ ${event.end}</p>
+                </div>
+                <button class="delete-btn" data-index="${index}">삭제</button>
+            `;
+            eventList.appendChild(item);
+        });
+
+        // 삭제 이벤트 연결
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const index = e.target.dataset.index;
+                events.splice(index, 1);
+                localStorage.setItem('timetable_events', JSON.stringify(events));
+                renderTimetable();
+            });
+        });
+    }
+
+    timetableForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const newEvent = {
+            name: document.getElementById('event-name').value,
+            day: document.getElementById('event-day').value,
+            start: document.getElementById('event-start').value,
+            end: document.getElementById('event-end').value
+        };
+
+        events.push(newEvent);
+        localStorage.setItem('timetable_events', JSON.stringify(events));
+        timetableForm.reset();
+        renderTimetable();
+        alert('일정이 추가되었습니다!');
+    });
+
+    renderTimetable();
 });

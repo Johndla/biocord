@@ -296,3 +296,52 @@ body.light-theme .fixed-event {
     font-size: 0.8rem;
     color: var(--text-dim);
 }
+
+/* 리스트 컨테이너 */
+.list-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.list-item {
+    background: var(--card-bg);
+    padding: 1.2rem;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: transform 0.2s;
+}
+
+.list-item:hover {
+    transform: translateY(-2px);
+}
+
+.item-info h4 {
+    margin-bottom: 4px;
+    font-size: 1rem;
+}
+
+.item-info p {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+}
+
+.delete-btn {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: none;
+    padding: 0.5rem 0.8rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: 0.2s;
+}
+
+.delete-btn:hover {
+    background: #ef4444;
+    color: white;
+}
