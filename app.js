@@ -204,8 +204,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 폼에 데이터 채우기
                 document.getElementById('event-name').value = event.name;
                 document.getElementById('event-day').value = event.day;
-                document.getElementById('event-start').value = event.start;
-                document.getElementById('event-end').value = event.end;
+                
+                // 시간 분해 (24h -> 12h AM/PM)
+                const splitTime = (timeStr, hId, mId, apId) => {
+                    let [h, m] = timeStr.split(':').map(Number);
+                    const ap = h >= 12 ? 'PM' : 'AM';
+                    if (h > 12) h -= 12;
+                    if (h === 0) h = 12;
+                    document.getElementById(hId).value = h;
+                    document.getElementById(mId).value = String(m).padStart(2, '0');
+                    document.getElementById(apId).value = ap;
+                };
+
+                splitTime(event.start, 'start-h', 'start-m', 'start-ap');
+                splitTime(event.end, 'end-h', 'end-m', 'end-ap');
 
                 // 수정 모드 상태로 변경
                 editIndex = index;
@@ -235,13 +247,34 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.classList.remove('primary-btn');
     }
 
+    // 12h -> 24h 변환 함수
+    function to24h(h, m, ap) {
+        h = parseInt(h);
+        m = parseInt(m) || 0;
+        if (ap === 'PM' && h < 12) h += 12;
+        if (ap === 'AM' && h === 12) h = 0;
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
+
     timetableForm.addEventListener('submit', (e) => {
         e.preventDefault();
+        
+        const start = to24h(
+            document.getElementById('start-h').value,
+            document.getElementById('start-m').value,
+            document.getElementById('start-ap').value
+        );
+        const end = to24h(
+            document.getElementById('end-h').value,
+            document.getElementById('end-m').value,
+            document.getElementById('end-ap').value
+        );
+
         const eventData = {
             name: document.getElementById('event-name').value,
             day: document.getElementById('event-day').value,
-            start: document.getElementById('event-start').value,
-            end: document.getElementById('event-end').value
+            start: start,
+            end: end
         };
 
         if (editIndex > -1) {
