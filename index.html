@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BIOCORD - AI Self-Learning Planner</title>
+    <title>STUDY PLAN - AI Self-Learning Planner</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="dark-theme">
@@ -34,7 +34,7 @@
             <!-- 탭 1: 대시보드 (주간 캘린더) -->
             <section id="dashboard" class="tab-content active">
                 <header>
-                    <h1>학습 대시보드</h1>
+                    <h1 id="dashboard-title">제목을 지어주세요.</h1>
                     <button id="generate-ai-btn" class="primary-btn">AI 추천 스케줄 생성</button>
                 </header>
                 <div class="calendar-container">
@@ -93,12 +93,23 @@
                 </div>
             </section>
 
-            <!-- 탭 4: 설정 (API 키) -->
+            <!-- 탭 4: 설정 (API 및 테마) -->
             <section id="settings" class="tab-content">
                 <header>
                     <h1>설정</h1>
                 </header>
                 <div class="form-card">
+                    <div class="form-group">
+                        <label>대시보드 제목 정하기</label>
+                        <input type="text" id="dashboard-name" placeholder="나만의 제목을 입력하세요 (예: 민수의 열공 공간)">
+                    </div>
+                    <div class="form-group">
+                        <label>테마 선택</label>
+                        <div class="theme-options">
+                            <label class="radio-label"><input type="radio" name="theme" value="dark" checked> 다크 (하늘색)</label>
+                            <label class="radio-label"><input type="radio" name="theme" value="light"> 라이트 (주황색)</label>
+                        </div>
+                    </div>
                     <div class="form-group">
                         <label>Gemini API Key</label>
                         <input type="password" id="api-key" placeholder="API 키를 입력하세요">

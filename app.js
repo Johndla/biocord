@@ -62,12 +62,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initCalendar();
 
-    // 3. 설정 및 API 키 자동 저장
+    // 3. 설정 관리 (대시보드 제목, 테마, API 키)
+    const dashboardTitle = document.getElementById('dashboard-title');
+    const dashboardNameInput = document.getElementById('dashboard-name');
     const apiKeyInput = document.getElementById('api-key');
+    const themeRadios = document.querySelectorAll('input[name="theme"]');
 
-    // 초기 값 로드
-    apiKeyInput.value = localStorage.getItem('gemini_api_key') || '';
+    // 초기 값 로드 및 적용
+    function loadSettings() {
+        const savedTitle = localStorage.getItem('dashboard_title') || '';
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        const savedApiKey = localStorage.getItem('gemini_api_key') || '';
 
+        dashboardNameInput.value = savedTitle;
+        dashboardTitle.innerText = savedTitle || '제목을 지어주세요.';
+        
+        apiKeyInput.value = savedApiKey;
+
+        // 테마 적용
+        document.body.className = `${savedTheme}-theme`;
+        document.querySelector(`input[name="theme"][value="${savedTheme}"]`).checked = true;
+    }
+
+    loadSettings();
+
+    // 대시보드 제목 변경 이벤트
+    dashboardNameInput.addEventListener('input', () => {
+        const title = dashboardNameInput.value.trim();
+        localStorage.setItem('dashboard_title', title);
+        dashboardTitle.innerText = title || '제목을 지어주세요.';
+    });
+
+    // 테마 변경 이벤트
+    themeRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            const theme = e.target.value;
+            localStorage.setItem('theme', theme);
+            document.body.className = `${theme}-theme`;
+        });
+    });
+
+    // API 키 자동 저장
     apiKeyInput.addEventListener('input', () => {
         const key = apiKeyInput.value.trim();
         localStorage.setItem('gemini_api_key', key);
