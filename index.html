@@ -8,164 +8,124 @@
 </head>
 <body class="dark-theme">
     <div id="app">
-        <!-- 사이드바 네비게이션 -->
+        <!-- 로딩 오버레이 -->
+        <div id="loading-overlay" class="hidden">
+            <div class="loader-content">
+                <div class="spinner"></div>
+                <p id="loading-quote">성공은 매일 반복되는 작은 노력의 합산입니다.</p>
+                <span class="loading-sub">AI가 나만을 위한 최적의 학습 계획을 짜고 있어요...</span>
+            </div>
+        </div>
+
+        <!-- 사이드바 -->
         <aside class="sidebar">
             <div class="logo">STUDY PLAN</div>
             <nav>
                 <ul>
-                    <li class="nav-item active" data-tab="dashboard">
-                        <span class="icon">📅</span> 대시보드
-                    </li>
-                    <li class="nav-item" data-tab="timetable">
-                        <span class="icon">⏰</span> 고정 시간표
-                    </li>
-                    <li class="nav-item" data-tab="goals">
-                        <span class="icon">🎯</span> 학습 목표
-                    </li>
-                    <li class="nav-item" data-tab="settings">
-                        <span class="icon">⚙️</span> 설정 (API)
-                    </li>
+                    <li class="nav-item active" data-tab="dashboard"><span class="icon">📅</span> 대시보드</li>
+                    <li class="nav-item" data-tab="timetable"><span class="icon">⏰</span> 고정 시간표</li>
+                    <li class="nav-item" data-tab="goals"><span class="icon">🎯</span> 학습 목표</li>
+                    <li class="nav-item" data-tab="settings"><span class="icon">⚙️</span> 설정 (API)</li>
                 </ul>
             </nav>
         </aside>
 
-        <!-- 메인 콘텐츠 영역 -->
+        <!-- 메인 콘텐츠 -->
         <main class="content">
-            <!-- 탭 1: 대시보드 (주간 캘린더) -->
+            <!-- 탭 1: 대시보드 -->
             <section id="dashboard" class="tab-content active">
                 <header>
                     <h1 id="dashboard-title">제목을 지어주세요.</h1>
                     <button id="generate-ai-btn" class="primary-btn">AI 추천 스케줄 생성</button>
                 </header>
                 <div class="calendar-container">
-                    <div class="calendar-grid" id="calendar-grid">
-                        <!-- JS에서 시간표 그리드 생성 예정 -->
-                    </div>
+                    <div class="calendar-grid" id="calendar-grid"></div>
                 </div>
             </section>
 
-            <!-- 탭 2: 고정 시간표 설정 -->
+            <!-- 탭 2: 고정 시간표 -->
             <section id="timetable" class="tab-content">
                 <header>
                     <h1>고정 시간표 설정</h1>
-                    <p>수업, 식사 등 매주 반복되는 고정 일정을 입력하세요.</p>
+                    <p>반복되는 일정을 입력하세요. (1분 단위 입력 가능)</p>
                 </header>
                 <div class="form-card">
                     <form id="timetable-form">
-                        <input type="text" id="event-name" placeholder="일정 이름 (예: 자료구조 강의)" required>
+                        <input type="text" id="event-name" placeholder="일정 이름" required>
                         <div class="form-row time-input-row">
                             <select id="event-day" required>
-                                <option value="1">월요일</option>
-                                <option value="2">화요일</option>
-                                <option value="3">수요일</option>
-                                <option value="4">목요일</option>
-                                <option value="5">금요일</option>
-                                <option value="6">토요일</option>
+                                <option value="1">월요일</option><option value="2">화요일</option>
+                                <option value="3">수요일</option><option value="4">목요일</option>
+                                <option value="5">금요일</option><option value="6">토요일</option>
                                 <option value="0">일요일</option>
                             </select>
                             
-                            <!-- 시작 시간 -->
                             <div class="time-picker">
                                 <span class="label">시작</span>
-                                <input type="number" id="start-h" list="hours" min="0" max="12" placeholder="시">
-                                <input type="number" id="start-m" list="minutes" min="0" max="60" step="1" placeholder="분">
+                                <input type="number" id="start-h" min="0" max="12" value="9" required>
+                                <span>:</span>
+                                <input type="number" id="start-m" min="0" max="59" value="00" step="1" required>
                                 <select id="start-ap">
-                                    <option value="AM">오전</option>
-                                    <option value="PM">오후</option>
+                                    <option value="AM">오전</option><option value="PM">오후</option>
                                 </select>
                             </div>
 
-                            <!-- 종료 시간 -->
                             <div class="time-picker">
                                 <span class="label">종료</span>
-                                <input type="number" id="end-h" list="hours" min="0" max="12" placeholder="시">
-                                <input type="number" id="end-m" list="minutes" min="0" max="60" step="1" placeholder="분">
+                                <input type="number" id="end-h" min="0" max="12" value="10" required>
+                                <span>:</span>
+                                <input type="number" id="end-m" min="0" max="59" value="00" step="1" required>
                                 <select id="end-ap">
-                                    <option value="AM">오전</option>
-                                    <option value="PM">오후</option>
+                                    <option value="AM">오전</option><option value="PM">오후</option>
                                 </select>
                             </div>
                         </div>
-
-                        <!-- 선택 목록 (Datalists) -->
-                        <datalist id="hours">
-                            <option value="0"></option><option value="1"></option><option value="2"></option>
-                            <option value="3"></option><option value="4"></option><option value="5"></option>
-                            <option value="6"></option><option value="7"></option><option value="8"></option>
-                            <option value="9"></option><option value="10"></option><option value="11"></option>
-                            <option value="12"></option>
-                        </datalist>
-                        <datalist id="minutes">
-                            <option value="00"></option><option value="05"></option><option value="10"></option>
-                            <option value="15"></option><option value="20"></option><option value="25"></option>
-                            <option value="30"></option><option value="35"></option><option value="40"></option>
-                            <option value="45"></option><option value="50"></option><option value="55"></option>
-                            <option value="60"></option>
-                        </datalist>
-                        <button type="submit" class="secondary-btn">일정 추가</button>
+                        <button type="submit" id="timetable-submit-btn" class="secondary-btn">일정 추가</button>
                     </form>
                 </div>
-                <div id="event-list" class="list-container">
-                    <!-- 저장된 일정 목록 표시 -->
-                </div>
+                <div id="event-list" class="list-container"></div>
             </section>
 
-            <!-- 탭 3: 학습 목표 설정 -->
+            <!-- 탭 3: 학습 목표 -->
             <section id="goals" class="tab-content">
-                <header>
-                    <h1>학습 목표 설정</h1>
-                    <p>AI가 계획을 짤 때 반영할 오늘의 학습 목표입니다.</p>
-                </header>
+                <header><h1>학습 목표 설정</h1></header>
                 <div class="form-card">
                     <div class="form-group">
-                        <label>하루 목표 학습 시간 (시간)</label>
-                        <input type="number" id="target-hours" min="1" max="24" value="4">
+                        <label>하루 목표 학습 시간</label>
+                        <input type="number" id="target-hours" value="4">
                     </div>
                     <div class="form-group">
-                        <label>집중 학습 과목 (쉼표로 구분)</label>
-                        <input type="text" id="target-subjects" placeholder="알고리즘, 리액트, 영어회화">
+                        <label>집중 학습 과목</label>
+                        <input type="text" id="target-subjects" placeholder="알고리즘, 토익, 리액트">
                     </div>
                     <button id="save-goals-btn" class="secondary-btn">목표 저장</button>
                 </div>
             </section>
 
-            <!-- 탭 4: 설정 (API 및 테마) -->
+            <!-- 탭 4: 설정 -->
             <section id="settings" class="tab-content">
-                <header>
-                    <h1>설정</h1>
-                </header>
+                <header><h1>설정</h1></header>
                 <div class="form-card">
                     <div class="form-group">
-                        <label>대시보드 제목 정하기</label>
-                        <input type="text" id="dashboard-name" placeholder="나만의 제목을 입력하세요 (예: 민수의 열공 공간)">
+                        <label>대시보드 제목</label>
+                        <input type="text" id="dashboard-name" placeholder="나만의 제목">
                     </div>
                     <div class="form-group">
                         <label>테마 선택</label>
                         <div class="theme-options">
-                            <label class="radio-label"><input type="radio" name="theme" value="dark" checked> 다크 (하늘색)</label>
-                            <label class="radio-label"><input type="radio" name="theme" value="light"> 라이트 (주황색)</label>
+                            <label class="radio-label"><input type="radio" name="theme" value="dark" checked> 다크</label>
+                            <label class="radio-label"><input type="radio" name="theme" value="light"> 라이트</label>
                         </div>
                     </div>
                     <div class="form-group">
                         <label>Gemini API Key</label>
-                        <input type="password" id="api-key" placeholder="API 키를 입력하세요">
-                        <p class="hint">키는 브라우저 로컬 저장소에만 안전하게 보관됩니다.</p>
+                        <input type="password" id="api-key" placeholder="API Key 입력">
                     </div>
                     <button id="save-settings-btn" class="secondary-btn">설정 저장</button>
                 </div>
             </section>
         </main>
     </div>
-
-    <script src="app.js"></script>
-</body>
-</html>
-        <button id="save-settings-btn" class="secondary-btn">설정 저장</button>
-                </div>
-            </section>
-        </main>
-    </div>
-
     <script src="app.js"></script>
 </body>
 </html>
