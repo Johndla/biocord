@@ -280,79 +280,53 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function callGemini(prompt, imageData = null) {
-        let apiKey = (localStorage.getItem('gemini_api_key') || '').trim();
-        if (!apiKey) { 
-            alert('설정(⚙️) 탭에서 Gemini API 키를 먼저 입력해 주세요!'); 
-            document.querySelector('[data-tab="settings"]').click();
-            return null; 
-        }
-
-        const baseModel = localStorage.getItem('gemini_model') || 'gemini-3.1-flash-lite';
-        const modelsToTry = [baseModel, 'gemini-3.1-flash-lite', 'gemini-3-flash-preview'];
+        const WORKER_URL = 'https://deploy.ljc71212.workers.dev';
 
         showLoading();
 
         const systemInstruction = "You are a professional timetable parser. Output ONLY a valid JSON array of objects. Keys: 'name'(string), 'day'(number 0-6), 'start'(HH:MM), 'end'(HH:MM).";
 
         try {
-            for (const model of modelsToTry) {
-                try {
-                    // 429 에러 방지를 위해 모델 시도 간 1초 지연
-                    if (modelsToTry.indexOf(model) > 0) {
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                    }
+            const payload = {
+                contents: [{
+                    parts: [{ text: `${systemInstruction}\n\nInput Context: ${prompt}` }]
+                }],
+                generationConfig: { response_mime_type: "application/json" }
+            };
 
-                    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-                    
-                    const payload = {
-                        contents: [{
-                            parts: [{ text: `${systemInstruction}\n\nInput Context: ${prompt}` }]
-                        }]
-                    };
+            if (imageData) {
+                payload.contents[0].parts.push({
+                    inline_data: { mime_type: imageData.mimeType, data: imageData.data }
+                });
+            }
 
-                    if (imageData) {
-                        payload.contents[0].parts.push({
-                            inline_data: { mime_type: imageData.mimeType, data: imageData.data }
-                        });
-                    }
+            const resp = await fetch(WORKER_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
 
-                    // 최신 모델들은 JSON 모드 지원
-                    payload.generationConfig = { response_mime_type: "application/json" };
+            const data = await resp.json();
 
-                    const resp = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                    
-                    const data = await resp.json();
-                    
-                    if (!resp.ok) {
-                        console.error(`API Error (${model}):`, data.error?.message || 'Unknown error');
-                        continue;
-                    }
+            if (!resp.ok) {
+                throw new Error(data.error?.message || `서버 오류 (${resp.status})`);
+            }
 
-                    if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
-                        let text = data.candidates[0].content.parts[0].text;
-                        
-                        // 정규식을 사용하여 JSON 배열 부분만 추출 (가장 안전한 방법)
-                        const jsonMatch = text.match(/\[[\s\S]*\]/);
-                        if (jsonMatch) {
-                            return JSON.parse(jsonMatch[0]);
-                        } else {
-                            // 마크다운 제거 시도
-                            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-                            return JSON.parse(text);
-                        }
-                    }
-                } catch (innerErr) {
-                    console.warn(`Model ${model} failed:`, innerErr);
+            if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
+                let text = data.candidates[0].content.parts[0].text;
+                const jsonMatch = text.match(/\[[\s\S]*\]/);
+                if (jsonMatch) {
+                    return JSON.parse(jsonMatch[0]);
+                } else {
+                    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                    return JSON.parse(text);
                 }
             }
-            throw new Error('모든 모델이 응답에 실패했습니다. API 키가 유효한지 확인하세요.');
-        } catch (outerErr) {
-            console.error('Fatal API Error:', outerErr);
-            alert(`AI 분석 오류: ${outerErr.message}`);
+
+            throw new Error('AI 응답을 파싱할 수 없습니다.');
+        } catch (err) {
+            console.error('API Error:', err);
+            alert(`AI 분석 오류: ${err.message}`);
         } finally {
             hideLoading();
         }
