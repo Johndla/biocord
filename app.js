@@ -300,65 +300,69 @@ document.addEventListener('DOMContentLoaded', () => {
         loadingQuote.innerText = quotes[Math.floor(Math.random() * quotes.length)];
         loadingOverlay.classList.remove('hidden');
 
-        // 프롬프트 보강
-        const enhancedPrompt = `${prompt}\n\nIMPORTANT: Output ONLY a raw JSON array. No markdown, no text. Example: [{"name": "Study", "day": 1, "start": "10:00", "end": "12:00"}]`;
+        // 프롬프트 보강: JSON 스키마를 명확히 제시
+        const systemPrompt = "You are a professional study planner. Output ONLY a valid JSON array.";
+        const formatInstruction = "Required format: Array of objects with keys: name (string), day (number 0-6, 0=Sun), start (string HH:MM), end (string HH:MM).";
+        const finalPrompt = `${systemPrompt}\n${formatInstruction}\n\nUser Request: ${prompt}`;
 
         try {
             for (const model of modelsToTry) {
                 try {
-                    const parts = [{ text: enhancedPrompt }];
+                    const parts = [{ text: finalPrompt }];
                     if (imageData) {
-                        if (model === 'gemini-pro' || model.includes('1.0')) continue;
+                        if (model.includes('gemini-pro') && !model.includes('1.5')) continue;
                         parts.push({
                             inline_data: { mime_type: imageData.mimeType, data: imageData.data }
                         });
                     }
 
-                    // v1 엔드포인트 사용 (가장 안정적)
-                    const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`;
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
                     
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 20000); // 15초 타임아웃
+                    const timeoutId = setTimeout(() => controller.abort(), 25000); 
 
                     const resp = await fetch(url, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ contents: [{ parts }] }),
+                        body: JSON.stringify({ 
+                            contents: [{ parts }],
+                            generationConfig: {
+                                temperature: 0.1, // 일관된 JSON 출력을 위해 낮춤
+                                response_mime_type: "application/json" // 모델이 지원하는 경우 JSON 모드 활성화
+                            }
+                        }),
                         signal: controller.signal
                     });
                     
                     clearTimeout(timeoutId);
 
-                    if (resp.status === 404) {
-                        console.warn(`${model} 모델을 찾을 수 없음 (404). 다음 모델 시도...`);
-                        continue;
-                    }
-
                     const data = await resp.json();
                     if (data.error) {
-                        console.warn(`${model} 에러:`, data.error.message);
+                        console.error(`Model ${model} error:`, data.error.message);
                         continue;
                     }
 
                     if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
-                        let responseText = data.candidates[0].content.parts[0].text;
-                        const startIdx = responseText.indexOf('[');
-                        const endIdx = responseText.lastIndexOf(']');
+                        let text = data.candidates[0].content.parts[0].text;
+                        // 마크다운 코드 블록 제거 및 순수 JSON 추출
+                        text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                        const startIdx = text.indexOf('[');
+                        const endIdx = text.lastIndexOf(']');
+                        
                         if (startIdx !== -1 && endIdx !== -1) {
-                            const jsonStr = responseText.substring(startIdx, endIdx + 1);
-                            return JSON.parse(jsonStr);
+                            return JSON.parse(text.substring(startIdx, endIdx + 1));
                         }
                     }
                 } catch (innerErr) {
-                    console.error(`${model} 시도 중 오류:`, innerErr);
+                    console.warn(`${model} failed, trying next...`, innerErr);
                 }
             }
-            alert('AI 분석에 실패했습니다. 다음을 확인해 보세요:\n1. API 키가 정확한가요?\n2. 인터넷 연결 상태\n3. 설정에서 모델을 변경해 보세요.');
+            throw new Error('All models failed to return valid data.');
         } catch (outerErr) {
-            console.error('Fatal API Error:', outerErr);
-            alert('네트워크 오류가 발생했습니다.');
+            console.error('Gemini API Error:', outerErr);
+            alert('AI 분석 중 오류가 발생했습니다. API 키나 모델 설정을 확인해 주세요.');
         } finally {
-            hideLoading(); // 어떤 경우에도 로딩 종료
+            hideLoading();
         }
         return null;
     }

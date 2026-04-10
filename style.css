@@ -44,7 +44,7 @@ body {
     display: flex; justify-content: center; align-items: center; text-align: center;
     transition: opacity 0.5s;
 }
-#loading-overlay.hidden { opacity: 0; pointer-events: none; visibility: hidden; }
+#loading-overlay.hidden { opacity: 0; pointer-events: none; visibility: hidden; display: none !important; }
 .spinner {
     width: 50px; height: 50px; border: 5px solid var(--border);
     border-top: 5px solid var(--accent); border-radius: 50%;
