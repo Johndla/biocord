@@ -250,6 +250,40 @@ document.addEventListener('DOMContentLoaded', () => {
     const aiTimetableBtn = document.getElementById('ai-timetable-btn');
     const aiTimetableInput = document.getElementById('ai-timetable-input');
 
+    // 일정 데이터 보정 유틸리티 (매우 강력하게 개선)
+    function processAiEvents(events) {
+        if (!Array.isArray(events)) return [];
+        
+        const dayMap = { '일': 0, '월': 1, '화': 2, '수': 3, '목': 4, '금': 5, '토': 6, '일요일': 0, '월요일': 1, '화요일': 2, '수요일': 3, '목요일': 4, '금요일': 5, '토요일': 6 };
+
+        return events.map(ev => {
+            // 요일 처리 (숫자 또는 문자열 대응)
+            let day = ev.day;
+            if (typeof day === 'string' && dayMap[day] !== undefined) day = dayMap[day];
+            else if (typeof day === 'string') day = parseInt(day.replace(/[^0-6]/g, '')) || 0;
+            
+            // 시간 처리 (HH:MM 형식 강제)
+            const formatTime = (t) => {
+                if (!t) return '09:00';
+                let clean = String(t).replace(/[^0-9:]/g, '');
+                if (clean.includes(':')) {
+                    let [h, m] = clean.split(':');
+                    return `${h.padStart(2, '0')}:${(m || '00').padEnd(2, '0').substring(0, 2)}`;
+                } else {
+                    let h = clean.substring(0, 2) || '09';
+                    return `${h.padStart(2, '0')}:00`;
+                }
+            };
+
+            return {
+                name: ev.name || '알 수 없는 일정',
+                day: parseInt(day) || 0,
+                start: formatTime(ev.start),
+                end: formatTime(ev.end)
+            };
+        }).filter(ev => !isNaN(ev.day) && ev.start.includes(':') && ev.end.includes(':'));
+    }
+
     async function callGemini(prompt, imageData = null) {
         const apiKey = localStorage.getItem('gemini_api_key');
         if (!apiKey) { 
@@ -266,8 +300,15 @@ document.addEventListener('DOMContentLoaded', () => {
         loadingQuote.innerText = quotes[Math.floor(Math.random() * quotes.length)];
         loadingOverlay.classList.remove('hidden');
 
-        // 프롬프트 보강: 형식을 엄격히 지정
-        const enhancedPrompt = `${prompt}\n\nIMPORTANT: Output ONLY a raw JSON array in the specified format. Do not include any markdown, explanations, or additional text. Example: [{"name": "Study", "day": 1, "start": "10:00", "end": "12:00"}]`;
+        // 프롬프트 보강: 한국어 상황에 최적화
+        const enhancedPrompt = `${prompt}
+        
+        규칙:
+        1. 반드시 JSON 배열 형식으로만 응답할 것.
+        2. 다른 설명이나 마크다운(예: \`\`\`json)을 포함하지 말 것.
+        3. 요일(day)은 0(일)~6(토) 숫자로 표기할 것.
+        4. 시간은 "HH:MM" 24시간제 형식으로 표기할 것.
+        형식 예시: [{"name": "수학 공부", "day": 1, "start": "14:00", "end": "16:00"}]`;
 
         for (const model of modelsToTry) {
             try {
@@ -289,7 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await resp.json();
                 
                 if (data.error) {
-                    console.warn(`${model} 실패:`, data.error.message);
+                    console.warn(`${model} 호출 실패:`, data.error.message);
                     continue;
                 }
 
@@ -298,52 +339,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 let responseText = data.candidates[0].content.parts[0].text;
-                console.log(`[${model}] AI 응답:`, responseText);
+                console.log(`[${model}] AI 응답 원본:`, responseText);
 
-                // JSON 추출 정규식 사용
-                const jsonRegex = /\[\s*\{.*\}\s*\]/s;
-                const match = responseText.match(jsonRegex);
-                let jsonStr = match ? match[0] : responseText.trim();
-
-                // 마크다운 태그 제거
-                jsonStr = jsonStr.replace(/```json|```/g, '').trim();
+                // JSON 배열 부분만 정교하게 추출
+                const startIdx = responseText.indexOf('[');
+                const endIdx = responseText.lastIndexOf(']');
                 
-                try {
-                    const result = JSON.parse(jsonStr);
-                    hideLoading();
-                    return result;
-                } catch (parseErr) {
-                    console.warn(`${model} 파싱 2차 시도 실패:`, parseErr);
+                if (startIdx === -1 || endIdx === -1) {
+                    console.warn('JSON 배열 형식을 찾을 수 없음');
                     continue;
                 }
 
+                const jsonStr = responseText.substring(startIdx, endIdx + 1);
+                const result = JSON.parse(jsonStr);
+                hideLoading();
+                return result;
+
             } catch (err) {
-                console.error(`${model} 호출 중 오류:`, err);
+                console.error(`${model} 처리 중 오류:`, err);
                 continue;
             }
         }
         hideLoading();
-        alert('AI가 데이터를 분석하지 못했습니다. 입력 내용이 너무 짧거나 분석하기 어려운 형식일 수 있습니다. (설정에서 Pro 모델로 변경해 보세요)');
+        alert('AI 분석에 실패했습니다. 다음 사항을 확인해 보세요:\n1. API 키가 유효한가요?\n2. 이미지나 텍스트가 시간표 정보를 포함하고 있나요?\n3. 설정에서 모델을 "Pro"로 바꿔보세요.');
         return null;
-    }
-    function hideLoading() { loadingOverlay.classList.add('hidden'); }
-
-    // API 가이드 토글
-    const howToApiBtn = document.getElementById('how-to-api-btn');
-    const apiGuide = document.getElementById('api-guide');
-    if (howToApiBtn && apiGuide) {
-        howToApiBtn.onclick = () => apiGuide.classList.toggle('hidden');
-    }
-
-    // 일정 데이터 보정 유틸리티
-    function processAiEvents(events) {
-        if (!Array.isArray(events)) return [];
-        return events.map(ev => ({
-            name: ev.name || '알 수 없는 일정',
-            day: parseInt(ev.day) || 0,
-            start: ev.start && ev.start.includes(':') ? ev.start : `${ev.start || '09'}:00`,
-            end: ev.end && ev.end.includes(':') ? ev.end : `${ev.end || '10'}:00`
-        })).filter(ev => !isNaN(ev.day) && ev.start && ev.end);
     }
 
     aiImageInput.addEventListener('change', async (e) => {
@@ -356,20 +375,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const mimeType = file.type;
             
             const result = await callGemini(
-                `이미지를 분석하여 고정 시간표 JSON 배열을 생성하세요. 
-                형식: [{"name": "명칭", "day": 0-6, "start": "HH:MM", "end": "HH:MM"}]
-                - day: 0(일), 1(월), 2(화), 3(수), 4(목), 5(금), 6(토)
-                - start, end: 24시간제 HH:MM 형식`,
+                "첨부된 이미지에서 시간표 정보를 추출하세요.",
                 { mimeType, data: base64Data }
             );
 
             if (result) {
-                const processedEvents = processAiEvents(result);
-                if (processedEvents.length > 0) {
-                    state.events.push(...processedEvents);
+                const processed = processAiEvents(result);
+                if (processed.length > 0) {
+                    state.events.push(...processed);
                     localStorage.setItem('timetable_events', JSON.stringify(state.events));
                     render();
-                    alert(`${processedEvents.length}개의 일정을 이미지에서 가져왔습니다.`);
+                    const names = processed.map(ev => ev.name).join(', ');
+                    alert(`성공적으로 추가됨: ${names}`);
+                } else {
+                    alert('이미지에서 유효한 시간표 데이터를 찾지 못했습니다.');
                 }
             }
             aiImageInput.value = '';
@@ -380,15 +399,18 @@ document.addEventListener('DOMContentLoaded', () => {
     aiTimetableBtn.addEventListener('click', async () => {
         const text = aiTimetableInput.value.trim();
         if (!text) return;
-        const result = await callGemini(`텍스트 분석 후 고정 시간표 JSON 배열 생성: "${text}". 형식: [{"name": "명칭", "day": 0-6, "start": "HH:MM", "end": "HH:MM"}]`);
+        const result = await callGemini(`다음 텍스트에서 시간표 정보를 추출하세요: "${text}"`);
         if (result) {
-            const processedEvents = processAiEvents(result);
-            if (processedEvents.length > 0) {
-                state.events.push(...processedEvents);
+            const processed = processAiEvents(result);
+            if (processed.length > 0) {
+                state.events.push(...processed);
                 localStorage.setItem('timetable_events', JSON.stringify(state.events));
                 aiTimetableInput.value = '';
                 render();
-                alert(`${processedEvents.length}개의 일정을 텍스트에서 가져왔습니다.`);
+                const names = processed.map(ev => ev.name).join(', ');
+                alert(`성공적으로 추가됨: ${names}`);
+            } else {
+                alert('텍스트에서 유효한 시간표 데이터를 분석하지 못했습니다.');
             }
         }
     });
