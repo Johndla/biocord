@@ -80,6 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const dashboardTitle = document.getElementById('dashboard-title');
     const dashboardNameInput = document.getElementById('dashboard-name');
     const apiKeyInput = document.getElementById('api-key');
+    const modelSelect = document.getElementById('ai-model-select');
     const themeRadios = document.querySelectorAll('input[name="theme"]');
 
     function applyTheme(theme) {
@@ -91,10 +92,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const title = localStorage.getItem('dashboard_title') || '';
         const theme = localStorage.getItem('theme') || 'dark';
         const apiKey = localStorage.getItem('gemini_api_key') || '';
+        const model = localStorage.getItem('gemini_model') || 'gemini-1.5-flash';
 
         dashboardNameInput.value = title;
         dashboardTitle.innerText = title || '제목을 지어주세요.';
         apiKeyInput.value = apiKey;
+        modelSelect.value = model;
         
         applyTheme(theme);
         const targetRadio = document.querySelector(`input[name="theme"][value="${theme}"]`);
@@ -114,6 +117,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     apiKeyInput.addEventListener('input', () => {
         localStorage.setItem('gemini_api_key', apiKeyInput.value.trim());
+    });
+
+    modelSelect.addEventListener('change', () => {
+        localStorage.setItem('gemini_model', modelSelect.value);
     });
 
     // 7. 유틸리티 및 렌더링
@@ -250,66 +257,67 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelector('[data-tab="settings"]').click();
             return null; 
         }
+
+        const baseModel = localStorage.getItem('gemini_model') || 'gemini-1.5-flash';
+        // 시도해볼 모델 목록 (이미지 유무에 따라 다름)
+        const modelsToTry = imageData 
+            ? [baseModel, 'gemini-1.5-pro', 'gemini-1.5-flash-latest'] 
+            : [baseModel, 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro'];
+
         loadingQuote.innerText = quotes[Math.floor(Math.random() * quotes.length)];
         loadingOverlay.classList.remove('hidden');
-        try {
-            const parts = [{ text: prompt }];
-            if (imageData) {
-                parts.push({
-                    inline_data: {
-                        mime_type: imageData.mimeType,
-                        data: imageData.data
-                    }
-                });
-            }
 
-            // 가장 표준적인 v1 엔드포인트와 gemini-1.5-flash 모델 사용
-            const modelName = imageData ? 'gemini-1.5-flash' : 'gemini-1.5-flash'; 
-            const url = `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`;
-            
-            const resp = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts }] })
-            });
-            
-            const data = await resp.json();
-            hideLoading();
-            
-            if (data.error) {
-                console.error('API Error Details:', data.error);
-                let errorMsg = data.error.message;
-                if (errorMsg.includes('not found')) {
-                    errorMsg = `모델(${modelName})을 찾을 수 없습니다. API 키가 최신 Gemini 1.5 모델을 지원하는지 확인해 주세요. Google AI Studio에서 새 키를 발급받는 것이 가장 확실한 해결책입니다.`;
-                }
-                throw new Error(errorMsg);
-            }
-
-            if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-                throw new Error('AI가 유효한 응답을 생성하지 못했습니다. 질문 내용을 조금 바꿔보거나 다시 시도해 주세요.');
-            }
-
-            let responseText = data.candidates[0].content.parts[0].text;
-            // JSON 응답 내의 마크다운 태그 및 불필요한 공백 제거
-            responseText = responseText.replace(/```json|```/g, '').trim();
-            
+        for (const model of modelsToTry) {
             try {
-                return JSON.parse(responseText);
-            } catch (parseErr) {
-                console.warn('JSON 파싱 실패, 텍스트 정제 후 재시도:', responseText);
-                // JSON 부분만 추출 시도
-                const jsonMatch = responseText.match(/\[\s*\{.*\}\s*\]|\{.*\}/s);
-                if (jsonMatch) {
-                    return JSON.parse(jsonMatch[0]);
+                console.log(`AI 요청 시도 중... 모델: ${model}`);
+                const parts = [{ text: prompt }];
+                if (imageData) {
+                    // 이미지 지원하지 않는 모델 스킵
+                    if (model.includes('1.0')) continue;
+                    parts.push({
+                        inline_data: { mime_type: imageData.mimeType, data: imageData.data }
+                    });
                 }
-                throw new Error('AI 응답 형식이 올바르지 않습니다. (JSON 파싱 실패)');
+
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                const resp = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts }] })
+                });
+                
+                const data = await resp.json();
+                
+                if (data.error) {
+                    console.warn(`${model} 실패:`, data.error.message);
+                    if (data.error.message.includes('not found') || data.error.message.includes('not supported')) {
+                        continue; // 다음 모델로 재시도
+                    }
+                    throw new Error(data.error.message);
+                }
+
+                if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+                    continue;
+                }
+
+                let responseText = data.candidates[0].content.parts[0].text;
+                responseText = responseText.replace(/```json|```/g, '').trim();
+                
+                const result = JSON.parse(responseText);
+                hideLoading();
+                return result;
+
+            } catch (err) {
+                console.error(`${model} 오류 발생:`, err);
+                if (modelsToTry.indexOf(model) === modelsToTry.length - 1) {
+                    hideLoading();
+                    alert('모든 AI 모델 요청에 실패했습니다: ' + err.message);
+                    return null;
+                }
             }
-        } catch (err) {
-            console.error(err);
-            hideLoading();
-            alert('AI 요청 중 오류가 발생했습니다: ' + err.message);
-            return null;
         }
+        hideLoading();
+        return null;
     }
     function hideLoading() { loadingOverlay.classList.add('hidden'); }
 
