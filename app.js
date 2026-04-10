@@ -263,33 +263,47 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
-            // 모델 인식 오류 해결을 위해 v1beta와 gemini-1.5-flash 명칭 사용
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+            // 가장 표준적인 v1 엔드포인트와 gemini-1.5-flash 모델 사용
+            const modelName = imageData ? 'gemini-1.5-flash' : 'gemini-1.5-flash'; 
+            const url = `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`;
+            
             const resp = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ contents: [{ parts }] })
             });
+            
             const data = await resp.json();
             hideLoading();
             
             if (data.error) {
-                // 특정 모델 오류 메시지 대응
-                if (data.error.message.includes('not found') || data.error.message.includes('not supported')) {
-                    throw new Error(`모델 인식 오류: 사용 중인 API 키가 'gemini-1.5-flash' 모델을 지원하지 않거나 엔드포인트가 일시적으로 제한되었습니다. (${data.error.message})`);
+                console.error('API Error Details:', data.error);
+                let errorMsg = data.error.message;
+                if (errorMsg.includes('not found')) {
+                    errorMsg = `모델(${modelName})을 찾을 수 없습니다. API 키가 최신 Gemini 1.5 모델을 지원하는지 확인해 주세요. Google AI Studio에서 새 키를 발급받는 것이 가장 확실한 해결책입니다.`;
                 }
-                throw new Error(data.error.message);
+                throw new Error(errorMsg);
             }
 
             if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-                throw new Error('AI가 유효한 응답을 생성하지 못했습니다. 다시 시도해 주세요.');
+                throw new Error('AI가 유효한 응답을 생성하지 못했습니다. 질문 내용을 조금 바꿔보거나 다시 시도해 주세요.');
             }
 
             let responseText = data.candidates[0].content.parts[0].text;
-            // JSON 응답 내의 마크다운 태그 제거 (필요 시)
+            // JSON 응답 내의 마크다운 태그 및 불필요한 공백 제거
             responseText = responseText.replace(/```json|```/g, '').trim();
             
-            return JSON.parse(responseText);
+            try {
+                return JSON.parse(responseText);
+            } catch (parseErr) {
+                console.warn('JSON 파싱 실패, 텍스트 정제 후 재시도:', responseText);
+                // JSON 부분만 추출 시도
+                const jsonMatch = responseText.match(/\[\s*\{.*\}\s*\]|\{.*\}/s);
+                if (jsonMatch) {
+                    return JSON.parse(jsonMatch[0]);
+                }
+                throw new Error('AI 응답 형식이 올바르지 않습니다. (JSON 파싱 실패)');
+            }
         } catch (err) {
             console.error(err);
             hideLoading();
