@@ -30,12 +30,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const eventList = document.getElementById('event-list');
     const submitBtn = document.getElementById('timetable-submit-btn');
     
-    // 시간 선택기 요소
     const startH = document.getElementById('start-h');
     const startM = document.getElementById('start-m');
     const endH = document.getElementById('end-h');
     const endM = document.getElementById('end-m');
     const aiImageInput = document.getElementById('ai-image-input');
+
+    // 3. 로딩 제어
+    function showLoading() {
+        loadingQuote.innerText = quotes[Math.floor(Math.random() * quotes.length)];
+        loadingOverlay.classList.remove('hidden');
+    }
+
+    function hideLoading() {
+        loadingOverlay.classList.add('hidden');
+    }
 
     // 4. 기능: 탭 전환
     navItems.forEach(item => {
@@ -76,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     initCalendar();
 
-    // 6. 설정 관리 (이름, 테마, API 키)
+    // 6. 설정 관리
     const dashboardTitle = document.getElementById('dashboard-title');
     const dashboardNameInput = document.getElementById('dashboard-name');
     const apiKeyInput = document.getElementById('api-key');
@@ -206,7 +215,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('event-name').value = ev.name;
         document.getElementById('event-day').value = ev.day;
         
-        // 시작 시간 처리
         let [sh, sm] = ev.start.split(':').map(Number);
         const sap = sh >= 12 ? 'PM' : 'AM';
         if (sh > 12) sh -= 12; if (sh === 0) sh = 12;
@@ -214,7 +222,6 @@ document.addEventListener('DOMContentLoaded', () => {
         startM.value = String(sm).padStart(2, '0');
         document.getElementById('start-ap').value = sap;
 
-        // 종료 시간 처리
         let [eh, em] = ev.end.split(':').map(Number);
         const eap = eh >= 12 ? 'PM' : 'AM';
         if (eh > 12) eh -= 12; if (eh === 0) eh = 12;
@@ -245,24 +252,18 @@ document.addEventListener('DOMContentLoaded', () => {
         render();
     });
 
-    // 8. AI 연동 (생략된 기존 AI 로직 보강)
+    // 8. AI 연동
     const generateBtn = document.getElementById('generate-ai-btn');
     const aiTimetableBtn = document.getElementById('ai-timetable-btn');
     const aiTimetableInput = document.getElementById('ai-timetable-input');
 
-    // 일정 데이터 보정 유틸리티 (매우 강력하게 개선)
     function processAiEvents(events) {
         if (!Array.isArray(events)) return [];
-        
         const dayMap = { '일': 0, '월': 1, '화': 2, '수': 3, '목': 4, '금': 5, '토': 6, '일요일': 0, '월요일': 1, '화요일': 2, '수요일': 3, '목요일': 4, '금요일': 5, '토요일': 6 };
-
         return events.map(ev => {
-            // 요일 처리 (숫자 또는 문자열 대응)
             let day = ev.day;
             if (typeof day === 'string' && dayMap[day] !== undefined) day = dayMap[day];
             else if (typeof day === 'string') day = parseInt(day.replace(/[^0-6]/g, '')) || 0;
-            
-            // 시간 처리 (HH:MM 형식 강제)
             const formatTime = (t) => {
                 if (!t) return '09:00';
                 let clean = String(t).replace(/[^0-9:]/g, '');
@@ -274,13 +275,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return `${h.padStart(2, '0')}:00`;
                 }
             };
-
-            return {
-                name: ev.name || '알 수 없는 일정',
-                day: parseInt(day) || 0,
-                start: formatTime(ev.start),
-                end: formatTime(ev.end)
-            };
+            return { name: ev.name || '알 수 없는 일정', day: parseInt(day) || 0, start: formatTime(ev.start), end: formatTime(ev.end) };
         }).filter(ev => !isNaN(ev.day) && ev.start.includes(':') && ev.end.includes(':'));
     }
 
@@ -293,49 +288,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const baseModel = localStorage.getItem('gemini_model') || 'gemini-1.5-flash';
-        const modelsToTry = imageData 
-            ? [baseModel, 'gemini-1.5-pro'] 
-            : [baseModel, 'gemini-1.5-flash', 'gemini-pro'];
+        const modelsToTry = [baseModel, 'gemini-1.5-flash', 'gemini-1.5-pro'];
 
-        loadingQuote.innerText = quotes[Math.floor(Math.random() * quotes.length)];
-        loadingOverlay.classList.remove('hidden');
+        showLoading();
 
-        // 프롬프트 보강: JSON 스키마를 명확히 제시
-        const systemPrompt = "You are a professional study planner. Output ONLY a valid JSON array.";
-        const formatInstruction = "Required format: Array of objects with keys: name (string), day (number 0-6, 0=Sun), start (string HH:MM), end (string HH:MM).";
-        const finalPrompt = `${systemPrompt}\n${formatInstruction}\n\nUser Request: ${prompt}`;
+        const finalPrompt = `Task: Output ONLY a raw JSON array of objects. 
+Keys: "name"(string), "day"(number 0-6), "start"(HH:MM), "end"(HH:MM).
+No markdown, no talk. 
+Context: ${prompt}`;
 
         try {
             for (const model of modelsToTry) {
                 try {
                     const parts = [{ text: finalPrompt }];
                     if (imageData) {
-                        if (model.includes('gemini-pro') && !model.includes('1.5')) continue;
-                        parts.push({
-                            inline_data: { mime_type: imageData.mimeType, data: imageData.data }
-                        });
+                        parts.push({ inline_data: { mime_type: imageData.mimeType, data: imageData.data } });
                     }
 
-                    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-                    
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 25000); 
-
+                    const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`;
                     const resp = await fetch(url, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            contents: [{ parts }],
-                            generationConfig: {
-                                temperature: 0.1, // 일관된 JSON 출력을 위해 낮춤
-                                response_mime_type: "application/json" // 모델이 지원하는 경우 JSON 모드 활성화
-                            }
-                        }),
-                        signal: controller.signal
+                        body: JSON.stringify({ contents: [{ parts }] })
                     });
                     
-                    clearTimeout(timeoutId);
-
                     const data = await resp.json();
                     if (data.error) {
                         console.error(`Model ${model} error:`, data.error.message);
@@ -344,23 +320,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
                         let text = data.candidates[0].content.parts[0].text;
-                        // 마크다운 코드 블록 제거 및 순수 JSON 추출
                         text = text.replace(/```json/g, '').replace(/```/g, '').trim();
                         const startIdx = text.indexOf('[');
                         const endIdx = text.lastIndexOf(']');
-                        
                         if (startIdx !== -1 && endIdx !== -1) {
                             return JSON.parse(text.substring(startIdx, endIdx + 1));
                         }
                     }
                 } catch (innerErr) {
-                    console.warn(`${model} failed, trying next...`, innerErr);
+                    console.warn(`${model} failed:`, innerErr);
                 }
             }
-            throw new Error('All models failed to return valid data.');
+            alert('AI 분석에 실패했습니다. API 키나 모델 설정을 확인해 주세요.');
         } catch (outerErr) {
-            console.error('Gemini API Error:', outerErr);
-            alert('AI 분석 중 오류가 발생했습니다. API 키나 모델 설정을 확인해 주세요.');
+            console.error('Fatal API Error:', outerErr);
+            alert('네트워크 오류가 발생했습니다.');
         } finally {
             hideLoading();
         }
@@ -370,27 +344,17 @@ document.addEventListener('DOMContentLoaded', () => {
     aiImageInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-
         const reader = new FileReader();
         reader.onload = async (event) => {
             const base64Data = event.target.result.split(',')[1];
-            const mimeType = file.type;
-            
-            const result = await callGemini(
-                "첨부된 이미지에서 시간표 정보를 추출하세요.",
-                { mimeType, data: base64Data }
-            );
-
+            const result = await callGemini("Extract timetable from image.", { mimeType: file.type, data: base64Data });
             if (result) {
                 const processed = processAiEvents(result);
                 if (processed.length > 0) {
                     state.events.push(...processed);
                     localStorage.setItem('timetable_events', JSON.stringify(state.events));
                     render();
-                    const names = processed.map(ev => ev.name).join(', ');
-                    alert(`성공적으로 추가됨: ${names}`);
-                } else {
-                    alert('이미지에서 유효한 시간표 데이터를 찾지 못했습니다.');
+                    alert(`성공적으로 추가됨: ${processed.length}개의 일정`);
                 }
             }
             aiImageInput.value = '';
@@ -401,7 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
     aiTimetableBtn.addEventListener('click', async () => {
         const text = aiTimetableInput.value.trim();
         if (!text) return;
-        const result = await callGemini(`다음 텍스트에서 시간표 정보를 추출하세요: "${text}"`);
+        const result = await callGemini(`Extract timetable from: "${text}"`);
         if (result) {
             const processed = processAiEvents(result);
             if (processed.length > 0) {
@@ -409,16 +373,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.setItem('timetable_events', JSON.stringify(state.events));
                 aiTimetableInput.value = '';
                 render();
-                const names = processed.map(ev => ev.name).join(', ');
-                alert(`성공적으로 추가됨: ${names}`);
-            } else {
-                alert('텍스트에서 유효한 시간표 데이터를 분석하지 못했습니다.');
+                alert(`성공적으로 추가됨: ${processed.length}개의 일정`);
             }
         }
     });
 
     generateBtn.addEventListener('click', async () => {
-        const prompt = `학습 스케줄 생성. 목표: ${document.getElementById('final-goal').value}, 수준: ${document.getElementById('learner-level').value}, 시간: ${document.getElementById('target-hours').value}, 과목: ${document.getElementById('target-subjects').value}, 고정: ${JSON.stringify(state.events)}`;
+        const prompt = `Create a study schedule. Goal: ${document.getElementById('final-goal').value}, Level: ${document.getElementById('learner-level').value}, Hours: ${document.getElementById('target-hours').value}, Subjects: ${document.getElementById('target-subjects').value}, Fixed Events: ${JSON.stringify(state.events)}`;
         const result = await callGemini(prompt);
         if (result) {
             state.aiTasks = result.map(t => ({ ...t, completed: false }));
@@ -427,7 +388,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 9. 학습 목표 및 설정 저장
     document.getElementById('save-settings-btn').onclick = () => {
         localStorage.setItem('dashboard_title', document.getElementById('dashboard-name').value);
         alert('설정이 저장되었습니다!');
