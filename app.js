@@ -287,8 +287,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return null; 
         }
 
-        const baseModel = localStorage.getItem('gemini_model') || 'gemini-2.0-flash';
-        const modelsToTry = [baseModel, 'gemini-2.0-flash', 'gemini-2.0-flash-exp'];
+        const baseModel = localStorage.getItem('gemini_model') || 'gemini-3.1-flash';
+        const modelsToTry = [baseModel, 'gemini-3.1-flash', 'gemini-3.1-pro'];
 
         showLoading();
 
@@ -311,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
 
-                    // Gemini 2.0 모델은 JSON 모드 지원
+                    // Gemini 3.1 모델은 JSON 모드 지원
                     payload.generationConfig = { response_mime_type: "application/json" };
 
                     const resp = await fetch(url, {
