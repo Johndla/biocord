@@ -288,7 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const baseModel = localStorage.getItem('gemini_model') || 'gemini-2.0-flash';
-        const modelsToTry = [baseModel, 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+        const modelsToTry = [baseModel, 'gemini-2.0-flash', 'gemini-2.0-flash-exp'];
 
         showLoading();
 
@@ -311,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
 
-                    // 모든 최신 모델(2.0, 1.5)에서 JSON 모드 지원
+                    // Gemini 2.0 모델은 JSON 모드 지원
                     payload.generationConfig = { response_mime_type: "application/json" };
 
                     const resp = await fetch(url, {
