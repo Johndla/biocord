@@ -88,7 +88,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 6. 설정 관리
     const dashboardTitle = document.getElementById('dashboard-title');
     const dashboardNameInput = document.getElementById('dashboard-name');
-    const apiKeyInput = document.getElementById('api-key');
     const modelSelect = document.getElementById('ai-model-select');
     const themeRadios = document.querySelectorAll('input[name="theme"]');
 
@@ -100,12 +99,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadSettings() {
         const title = localStorage.getItem('dashboard_title') || '';
         const theme = localStorage.getItem('theme') || 'dark';
-        const apiKey = localStorage.getItem('gemini_api_key') || '';
         const model = localStorage.getItem('gemini_model') || 'gemini-1.5-flash';
 
         dashboardNameInput.value = title;
         dashboardTitle.innerText = title || '제목을 지어주세요.';
-        apiKeyInput.value = apiKey;
         modelSelect.value = model;
         
         applyTheme(theme);
@@ -124,9 +121,6 @@ document.addEventListener('DOMContentLoaded', () => {
         radio.addEventListener('change', (e) => applyTheme(e.target.value));
     });
 
-    apiKeyInput.addEventListener('input', () => {
-        localStorage.setItem('gemini_api_key', apiKeyInput.value.trim());
-    });
 
     modelSelect.addEventListener('change', () => {
         localStorage.setItem('gemini_model', modelSelect.value);
