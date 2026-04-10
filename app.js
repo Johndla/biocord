@@ -259,7 +259,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const baseModel = localStorage.getItem('gemini_model') || 'gemini-1.5-flash';
-        // 시도해볼 모델 목록 (이미지 유무에 따라 다름)
         const modelsToTry = imageData 
             ? [baseModel, 'gemini-1.5-pro', 'gemini-1.5-flash-latest'] 
             : [baseModel, 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro'];
@@ -267,12 +266,13 @@ document.addEventListener('DOMContentLoaded', () => {
         loadingQuote.innerText = quotes[Math.floor(Math.random() * quotes.length)];
         loadingOverlay.classList.remove('hidden');
 
+        // 프롬프트 보강: 형식을 엄격히 지정
+        const enhancedPrompt = `${prompt}\n\nIMPORTANT: Output ONLY a raw JSON array in the specified format. Do not include any markdown, explanations, or additional text. Example: [{"name": "Study", "day": 1, "start": "10:00", "end": "12:00"}]`;
+
         for (const model of modelsToTry) {
             try {
-                console.log(`AI 요청 시도 중... 모델: ${model}`);
-                const parts = [{ text: prompt }];
+                const parts = [{ text: enhancedPrompt }];
                 if (imageData) {
-                    // 이미지 지원하지 않는 모델 스킵
                     if (model.includes('1.0')) continue;
                     parts.push({
                         inline_data: { mime_type: imageData.mimeType, data: imageData.data }
@@ -290,10 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (data.error) {
                     console.warn(`${model} 실패:`, data.error.message);
-                    if (data.error.message.includes('not found') || data.error.message.includes('not supported')) {
-                        continue; // 다음 모델로 재시도
-                    }
-                    throw new Error(data.error.message);
+                    continue;
                 }
 
                 if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
@@ -301,27 +298,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 let responseText = data.candidates[0].content.parts[0].text;
-                console.log('AI 원본 응답:', responseText);
+                console.log(`[${model}] AI 응답:`, responseText);
 
-                // JSON 추출 로직 강화
-                let jsonStr = responseText.trim();
-                const firstBracket = jsonStr.indexOf('[');
-                const lastBracket = jsonStr.lastIndexOf(']');
-                if (firstBracket !== -1 && lastBracket !== -1) {
-                    jsonStr = jsonStr.substring(firstBracket, lastBracket + 1);
+                // JSON 추출 정규식 사용
+                const jsonRegex = /\[\s*\{.*\}\s*\]/s;
+                const match = responseText.match(jsonRegex);
+                let jsonStr = match ? match[0] : responseText.trim();
+
+                // 마크다운 태그 제거
+                jsonStr = jsonStr.replace(/```json|```/g, '').trim();
+                
+                try {
+                    const result = JSON.parse(jsonStr);
+                    hideLoading();
+                    return result;
+                } catch (parseErr) {
+                    console.warn(`${model} 파싱 2차 시도 실패:`, parseErr);
+                    continue;
                 }
 
-                const result = JSON.parse(jsonStr);
-                hideLoading();
-                return result;
-
             } catch (err) {
-                console.warn(`${model} 결과 파싱 실패:`, err);
-                continue; // 다음 모델 시도
+                console.error(`${model} 호출 중 오류:`, err);
+                continue;
             }
         }
         hideLoading();
-        alert('AI가 데이터를 분석하지 못했거나 응답 형식이 올바르지 않습니다.');
+        alert('AI가 데이터를 분석하지 못했습니다. 입력 내용이 너무 짧거나 분석하기 어려운 형식일 수 있습니다. (설정에서 Pro 모델로 변경해 보세요)');
         return null;
     }
     function hideLoading() { loadingOverlay.classList.add('hidden'); }
