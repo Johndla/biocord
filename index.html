@@ -56,7 +56,13 @@
                         <textarea id="ai-timetable-input" placeholder="예: 월요일 10시부터 12시까지 자료구조 강의, 화요일 오후 2시에 영어 학원 등 텍스트를 입력하세요."></textarea>
                         <p class="hint">자연어로 입력하면 AI가 분석해서 시간표에 넣어줍니다.</p>
                     </div>
-                    <button id="ai-timetable-btn" class="secondary-btn">텍스트로 추가하기</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="ai-timetable-btn" class="secondary-btn">텍스트로 추가하기</button>
+                        <label for="ai-image-input" class="secondary-btn" style="cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                            📸 이미지로 추가하기
+                        </label>
+                        <input type="file" id="ai-image-input" accept="image/*" style="display: none;">
+                    </div>
                 </div>
 
                 <div class="form-card">
@@ -79,9 +85,9 @@
                             <div class="form-group">
                                 <label>시작 시간</label>
                                 <div class="time-picker">
-                                    <select id="start-h" required></select>
+                                    <input type="number" id="start-h" min="1" max="12" placeholder="시" list="hours-list" required>
                                     <span>:</span>
-                                    <select id="start-m" required></select>
+                                    <input type="number" id="start-m" min="0" max="59" placeholder="분" list="minutes-list" required>
                                     <select id="start-ap">
                                         <option value="AM">오전</option><option value="PM">오후</option>
                                     </select>
@@ -91,16 +97,26 @@
                             <div class="form-group">
                                 <label>종료 시간</label>
                                 <div class="time-picker">
-                                    <select id="end-h" required></select>
+                                    <input type="number" id="end-h" min="1" max="12" placeholder="시" list="hours-list" required>
                                     <span>:</span>
-                                    <select id="end-m" required></select>
+                                    <input type="number" id="end-m" min="0" max="59" placeholder="분" list="minutes-list" required>
                                     <select id="end-ap">
                                         <option value="AM">오전</option><option value="PM">오후</option>
                                     </select>
                                 </div>
                             </div>
                         </div>
-                        <button type="submit" id="timetable-submit-btn" class="secondary-btn">일정 수동 추가</button>
+                        <datalist id="hours-list">
+                            <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                            <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+                            <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+                            <option value="10">10</option><option value="11">11</option><option value="12">12</option>
+                        </datalist>
+                        <datalist id="minutes-list">
+                            <option value="00">00</option><option value="10">10</option><option value="20">20</option>
+                            <option value="30">30</option><option value="40">40</option><option value="50">50</option>
+                        </datalist>
+                        <button type="submit" id="timetable-submit-btn" class="primary-btn">일정 수동 추가</button>
                     </form>
                 </div>
                 <div id="event-list" class="list-container"></div>

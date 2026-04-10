@@ -96,9 +96,9 @@ h1 { font-size: 2.5rem; font-weight: 800; }
     border: 1px solid var(--border); 
     width: fit-content;
 }
-.time-picker select { 
+.time-picker select, .time-picker input { 
     width: auto; 
-    min-width: 60px;
+    min-width: 50px;
     background: transparent; 
     border: none; 
     color: var(--text-main); 
@@ -108,7 +108,18 @@ h1 { font-size: 2.5rem; font-weight: 800; }
     outline: none; 
     cursor: pointer;
     padding: 5px;
+}
+.time-picker select {
     appearance: none;
+}
+/* input type number 스피너 제거 */
+.time-picker input::-webkit-outer-spin-button,
+.time-picker input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.time-picker input[type=number] {
+    -moz-appearance: textfield;
 }
 .time-picker select option {
     background-color: var(--sidebar-bg);

@@ -35,31 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const startM = document.getElementById('start-m');
     const endH = document.getElementById('end-h');
     const endM = document.getElementById('end-m');
-
-    // 3. 시간 선택기 초기화 (1-12시, 00-59분)
-    function initTimePickers() {
-        const hours = Array.from({length: 12}, (_, i) => i + 1);
-        const minutes = Array.from({length: 60}, (_, i) => String(i).padStart(2, '0'));
-
-        [startH, endH].forEach(select => {
-            hours.forEach(h => {
-                const opt = document.createElement('option');
-                opt.value = h;
-                opt.innerText = h;
-                select.appendChild(opt);
-            });
-        });
-
-        [startM, endM].forEach(select => {
-            minutes.forEach(m => {
-                const opt = document.createElement('option');
-                opt.value = m;
-                opt.innerText = m;
-                select.appendChild(opt);
-            });
-        });
-    }
-    initTimePickers();
+    const aiImageInput = document.getElementById('ai-image-input');
 
     // 4. 기능: 탭 전환
     navItems.forEach(item => {
@@ -222,13 +198,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const ev = state.events[i];
         document.getElementById('event-name').value = ev.name;
         document.getElementById('event-day').value = ev.day;
-        let [h, m] = ev.start.split(':').map(Number);
-        const ap = h >= 12 ? 'PM' : 'AM';
-        if (h > 12) h -= 12; if (h === 0) h = 12;
         
-        startH.value = h;
-        startM.value = String(m).padStart(2, '0');
-        document.getElementById('start-ap').value = ap;
+        // 시작 시간 처리
+        let [sh, sm] = ev.start.split(':').map(Number);
+        const sap = sh >= 12 ? 'PM' : 'AM';
+        if (sh > 12) sh -= 12; if (sh === 0) sh = 12;
+        startH.value = sh;
+        startM.value = String(sm).padStart(2, '0');
+        document.getElementById('start-ap').value = sap;
+
+        // 종료 시간 처리
+        let [eh, em] = ev.end.split(':').map(Number);
+        const eap = eh >= 12 ? 'PM' : 'AM';
+        if (eh > 12) eh -= 12; if (eh === 0) eh = 12;
+        endH.value = eh;
+        endM.value = String(em).padStart(2, '0');
+        document.getElementById('end-ap').value = eap;
 
         state.editIndex = i;
         submitBtn.innerText = '수정 완료';
@@ -258,28 +243,69 @@ document.addEventListener('DOMContentLoaded', () => {
     const aiTimetableBtn = document.getElementById('ai-timetable-btn');
     const aiTimetableInput = document.getElementById('ai-timetable-input');
 
-    async function callGemini(prompt) {
+    async function callGemini(prompt, imageData = null) {
         const apiKey = localStorage.getItem('gemini_api_key');
         if (!apiKey) { alert('설정에서 API 키를 먼저 입력해 주세요!'); return null; }
         loadingQuote.innerText = quotes[Math.floor(Math.random() * quotes.length)];
         loadingOverlay.classList.remove('hidden');
         try {
+            const parts = [{ text: prompt }];
+            if (imageData) {
+                parts.push({
+                    inline_data: {
+                        mime_type: imageData.mimeType,
+                        data: imageData.data
+                    }
+                });
+            }
+
             const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { response_mime_type: "application/json" } })
+                body: JSON.stringify({ contents: [{ parts }], generationConfig: { response_mime_type: "application/json" } })
             });
             const data = await resp.json();
             hideLoading();
+            if (data.error) {
+                throw new Error(data.error.message);
+            }
             return JSON.parse(data.candidates[0].content.parts[0].text);
         } catch (err) {
             console.error(err);
             hideLoading();
-            alert('AI 요청 중 오류가 발생했습니다.');
+            alert('AI 요청 중 오류가 발생했습니다: ' + err.message);
             return null;
         }
     }
     function hideLoading() { loadingOverlay.classList.add('hidden'); }
+
+    aiImageInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            const base64Data = event.target.result.split(',')[1];
+            const mimeType = file.type;
+            
+            const result = await callGemini(
+                `이미지를 분석하여 고정 시간표 JSON 배열을 생성하세요. 
+                형식: [{"name": "명칭", "day": 0-6, "start": "HH:MM", "end": "HH:MM"}]
+                - day: 0(일) ~ 6(토)
+                - start, end: 24시간제 HH:MM 형식`,
+                { mimeType, data: base64Data }
+            );
+
+            if (result && Array.isArray(result)) {
+                state.events.push(...result);
+                localStorage.setItem('timetable_events', JSON.stringify(state.events));
+                render();
+                alert('이미지에서 시간표를 성공적으로 추출했습니다!');
+            }
+            aiImageInput.value = '';
+        };
+        reader.readAsDataURL(file);
+    });
 
     aiTimetableBtn.addEventListener('click', async () => {
         const text = aiTimetableInput.value.trim();
