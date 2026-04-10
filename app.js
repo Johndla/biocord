@@ -287,8 +287,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return null; 
         }
 
-        const baseModel = localStorage.getItem('gemini_model') || 'gemini-3.1-flash';
-        const modelsToTry = [baseModel, 'gemini-3.1-flash', 'gemini-3.1-pro'];
+        const baseModel = localStorage.getItem('gemini_model') || 'gemini-3.1-flash-lite';
+        const modelsToTry = [baseModel, 'gemini-3.1-flash-lite', 'gemini-3-flash-preview'];
 
         showLoading();
 
@@ -297,6 +297,11 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             for (const model of modelsToTry) {
                 try {
+                    // 429 에러 방지를 위해 모델 시도 간 1초 지연
+                    if (modelsToTry.indexOf(model) > 0) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+
                     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
                     
                     const payload = {
@@ -311,7 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
 
-                    // Gemini 3.1 모델은 JSON 모드 지원
+                    // 최신 모델들은 JSON 모드 지원
                     payload.generationConfig = { response_mime_type: "application/json" };
 
                     const resp = await fetch(url, {
