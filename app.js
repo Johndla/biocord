@@ -285,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function callGemini(prompt, imageData = null) {
-        const apiKey = localStorage.getItem('gemini_api_key');
+        const apiKey = (localStorage.getItem('gemini_api_key') || '').trim();
         if (!apiKey) { 
             alert('설정(⚙️) 탭에서 Gemini API 키를 먼저 입력해 주세요!'); 
             document.querySelector('[data-tab="settings"]').click();
@@ -294,74 +294,72 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const baseModel = localStorage.getItem('gemini_model') || 'gemini-1.5-flash';
         const modelsToTry = imageData 
-            ? [baseModel, 'gemini-1.5-pro', 'gemini-1.5-flash-latest'] 
-            : [baseModel, 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro'];
+            ? [baseModel, 'gemini-1.5-pro'] 
+            : [baseModel, 'gemini-1.5-flash', 'gemini-pro'];
 
         loadingQuote.innerText = quotes[Math.floor(Math.random() * quotes.length)];
         loadingOverlay.classList.remove('hidden');
 
-        // 프롬프트 보강: 한국어 상황에 최적화
-        const enhancedPrompt = `${prompt}
-        
-        규칙:
-        1. 반드시 JSON 배열 형식으로만 응답할 것.
-        2. 다른 설명이나 마크다운(예: \`\`\`json)을 포함하지 말 것.
-        3. 요일(day)은 0(일)~6(토) 숫자로 표기할 것.
-        4. 시간은 "HH:MM" 24시간제 형식으로 표기할 것.
-        형식 예시: [{"name": "수학 공부", "day": 1, "start": "14:00", "end": "16:00"}]`;
+        // 프롬프트 보강
+        const enhancedPrompt = `${prompt}\n\nIMPORTANT: Output ONLY a raw JSON array. No markdown, no text. Example: [{"name": "Study", "day": 1, "start": "10:00", "end": "12:00"}]`;
 
-        for (const model of modelsToTry) {
-            try {
-                const parts = [{ text: enhancedPrompt }];
-                if (imageData) {
-                    if (model.includes('1.0')) continue;
-                    parts.push({
-                        inline_data: { mime_type: imageData.mimeType, data: imageData.data }
+        try {
+            for (const model of modelsToTry) {
+                try {
+                    const parts = [{ text: enhancedPrompt }];
+                    if (imageData) {
+                        if (model === 'gemini-pro' || model.includes('1.0')) continue;
+                        parts.push({
+                            inline_data: { mime_type: imageData.mimeType, data: imageData.data }
+                        });
+                    }
+
+                    // v1 엔드포인트 사용 (가장 안정적)
+                    const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`;
+                    
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 20000); // 15초 타임아웃
+
+                    const resp = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts }] }),
+                        signal: controller.signal
                     });
+                    
+                    clearTimeout(timeoutId);
+
+                    if (resp.status === 404) {
+                        console.warn(`${model} 모델을 찾을 수 없음 (404). 다음 모델 시도...`);
+                        continue;
+                    }
+
+                    const data = await resp.json();
+                    if (data.error) {
+                        console.warn(`${model} 에러:`, data.error.message);
+                        continue;
+                    }
+
+                    if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
+                        let responseText = data.candidates[0].content.parts[0].text;
+                        const startIdx = responseText.indexOf('[');
+                        const endIdx = responseText.lastIndexOf(']');
+                        if (startIdx !== -1 && endIdx !== -1) {
+                            const jsonStr = responseText.substring(startIdx, endIdx + 1);
+                            return JSON.parse(jsonStr);
+                        }
+                    }
+                } catch (innerErr) {
+                    console.error(`${model} 시도 중 오류:`, innerErr);
                 }
-
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-                const resp = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts }] })
-                });
-                
-                const data = await resp.json();
-                
-                if (data.error) {
-                    console.warn(`${model} 호출 실패:`, data.error.message);
-                    continue;
-                }
-
-                if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-                    continue;
-                }
-
-                let responseText = data.candidates[0].content.parts[0].text;
-                console.log(`[${model}] AI 응답 원본:`, responseText);
-
-                // JSON 배열 부분만 정교하게 추출
-                const startIdx = responseText.indexOf('[');
-                const endIdx = responseText.lastIndexOf(']');
-                
-                if (startIdx === -1 || endIdx === -1) {
-                    console.warn('JSON 배열 형식을 찾을 수 없음');
-                    continue;
-                }
-
-                const jsonStr = responseText.substring(startIdx, endIdx + 1);
-                const result = JSON.parse(jsonStr);
-                hideLoading();
-                return result;
-
-            } catch (err) {
-                console.error(`${model} 처리 중 오류:`, err);
-                continue;
             }
+            alert('AI 분석에 실패했습니다. 다음을 확인해 보세요:\n1. API 키가 정확한가요?\n2. 인터넷 연결 상태\n3. 설정에서 모델을 변경해 보세요.');
+        } catch (outerErr) {
+            console.error('Fatal API Error:', outerErr);
+            alert('네트워크 오류가 발생했습니다.');
+        } finally {
+            hideLoading(); // 어떤 경우에도 로딩 종료
         }
-        hideLoading();
-        alert('AI 분석에 실패했습니다. 다음 사항을 확인해 보세요:\n1. API 키가 유효한가요?\n2. 이미지나 텍스트가 시간표 정보를 포함하고 있나요?\n3. 설정에서 모델을 "Pro"로 바꿔보세요.');
         return null;
     }
 
