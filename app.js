@@ -340,16 +340,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await callGemini(
                 `이미지를 분석하여 고정 시간표 JSON 배열을 생성하세요. 
                 형식: [{"name": "명칭", "day": 0-6, "start": "HH:MM", "end": "HH:MM"}]
-                - day: 0(일) ~ 6(토)
+                - day: 0(일), 1(월), 2(화), 3(수), 4(목), 5(금), 6(토)
                 - start, end: 24시간제 HH:MM 형식`,
                 { mimeType, data: base64Data }
             );
 
+            console.log('AI 이미지 분석 결과:', result);
+
             if (result && Array.isArray(result)) {
-                state.events.push(...result);
+                // 데이터 형식 보정 (숫자형 변환 등)
+                const processedEvents = result.map(ev => ({
+                    ...ev,
+                    day: parseInt(ev.day),
+                    // 시간이 HH:MM 형식이 아닐 경우를 대비한 최소한의 처리
+                    start: ev.start.includes(':') ? ev.start : `${ev.start}:00`,
+                    end: ev.end.includes(':') ? ev.end : `${ev.end}:00`
+                }));
+
+                state.events.push(...processedEvents);
                 localStorage.setItem('timetable_events', JSON.stringify(state.events));
                 render();
-                alert('이미지에서 시간표를 성공적으로 추출했습니다!');
+                alert(`이미지에서 ${processedEvents.length}개의 일정을 성공적으로 추출했습니다!`);
             }
             aiImageInput.value = '';
         };
