@@ -301,22 +301,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 let responseText = data.candidates[0].content.parts[0].text;
-                responseText = responseText.replace(/```json|```/g, '').trim();
-                
-                const result = JSON.parse(responseText);
+                console.log('AI 원본 응답:', responseText);
+
+                // JSON 추출 로직 강화
+                let jsonStr = responseText.trim();
+                const firstBracket = jsonStr.indexOf('[');
+                const lastBracket = jsonStr.lastIndexOf(']');
+                if (firstBracket !== -1 && lastBracket !== -1) {
+                    jsonStr = jsonStr.substring(firstBracket, lastBracket + 1);
+                }
+
+                const result = JSON.parse(jsonStr);
                 hideLoading();
                 return result;
 
             } catch (err) {
-                console.error(`${model} 오류 발생:`, err);
-                if (modelsToTry.indexOf(model) === modelsToTry.length - 1) {
-                    hideLoading();
-                    alert('모든 AI 모델 요청에 실패했습니다: ' + err.message);
-                    return null;
-                }
+                console.warn(`${model} 결과 파싱 실패:`, err);
+                continue; // 다음 모델 시도
             }
         }
         hideLoading();
+        alert('AI가 데이터를 분석하지 못했거나 응답 형식이 올바르지 않습니다.');
         return null;
     }
     function hideLoading() { loadingOverlay.classList.add('hidden'); }
@@ -326,6 +331,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const apiGuide = document.getElementById('api-guide');
     if (howToApiBtn && apiGuide) {
         howToApiBtn.onclick = () => apiGuide.classList.toggle('hidden');
+    }
+
+    // 일정 데이터 보정 유틸리티
+    function processAiEvents(events) {
+        if (!Array.isArray(events)) return [];
+        return events.map(ev => ({
+            name: ev.name || '알 수 없는 일정',
+            day: parseInt(ev.day) || 0,
+            start: ev.start && ev.start.includes(':') ? ev.start : `${ev.start || '09'}:00`,
+            end: ev.end && ev.end.includes(':') ? ev.end : `${ev.end || '10'}:00`
+        })).filter(ev => !isNaN(ev.day) && ev.start && ev.end);
     }
 
     aiImageInput.addEventListener('change', async (e) => {
@@ -345,22 +361,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 { mimeType, data: base64Data }
             );
 
-            console.log('AI 이미지 분석 결과:', result);
-
-            if (result && Array.isArray(result)) {
-                // 데이터 형식 보정 (숫자형 변환 등)
-                const processedEvents = result.map(ev => ({
-                    ...ev,
-                    day: parseInt(ev.day),
-                    // 시간이 HH:MM 형식이 아닐 경우를 대비한 최소한의 처리
-                    start: ev.start.includes(':') ? ev.start : `${ev.start}:00`,
-                    end: ev.end.includes(':') ? ev.end : `${ev.end}:00`
-                }));
-
-                state.events.push(...processedEvents);
-                localStorage.setItem('timetable_events', JSON.stringify(state.events));
-                render();
-                alert(`이미지에서 ${processedEvents.length}개의 일정을 성공적으로 추출했습니다!`);
+            if (result) {
+                const processedEvents = processAiEvents(result);
+                if (processedEvents.length > 0) {
+                    state.events.push(...processedEvents);
+                    localStorage.setItem('timetable_events', JSON.stringify(state.events));
+                    render();
+                    alert(`${processedEvents.length}개의 일정을 이미지에서 가져왔습니다.`);
+                }
             }
             aiImageInput.value = '';
         };
@@ -371,11 +379,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const text = aiTimetableInput.value.trim();
         if (!text) return;
         const result = await callGemini(`텍스트 분석 후 고정 시간표 JSON 배열 생성: "${text}". 형식: [{"name": "명칭", "day": 0-6, "start": "HH:MM", "end": "HH:MM"}]`);
-        if (result && Array.isArray(result)) {
-            state.events.push(...result);
-            localStorage.setItem('timetable_events', JSON.stringify(state.events));
-            aiTimetableInput.value = '';
-            render();
+        if (result) {
+            const processedEvents = processAiEvents(result);
+            if (processedEvents.length > 0) {
+                state.events.push(...processedEvents);
+                localStorage.setItem('timetable_events', JSON.stringify(state.events));
+                aiTimetableInput.value = '';
+                render();
+                alert(`${processedEvents.length}개의 일정을 텍스트에서 가져왔습니다.`);
+            }
         }
     });
 
