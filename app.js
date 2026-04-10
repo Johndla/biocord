@@ -280,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function callGemini(prompt, imageData = null) {
-        const apiKey = (localStorage.getItem('gemini_api_key') || '').trim();
+        let apiKey = (localStorage.getItem('gemini_api_key') || '').trim();
         if (!apiKey) { 
             alert('설정(⚙️) 탭에서 Gemini API 키를 먼저 입력해 주세요!'); 
             document.querySelector('[data-tab="settings"]').click();
@@ -288,58 +288,93 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const baseModel = localStorage.getItem('gemini_model') || 'gemini-1.5-flash';
-        const modelsToTry = [baseModel, 'gemini-1.5-flash', 'gemini-1.5-pro'];
+        // 모델 이름 호환성 보정
+        const targetModel = baseModel === 'gemini-1.0-pro' ? 'gemini-pro' : baseModel;
+        const modelsToTry = [targetModel, 'gemini-1.5-flash', 'gemini-pro'];
 
         showLoading();
 
-        const finalPrompt = `Task: Output ONLY a raw JSON array of objects. 
-Keys: "name"(string), "day"(number 0-6), "start"(HH:MM), "end"(HH:MM).
-No markdown, no talk. 
-Context: ${prompt}`;
+        const systemInstruction = "You are a professional timetable parser. Output ONLY a valid JSON array of objects. Keys: 'name'(string), 'day'(number 0-6), 'start'(HH:MM), 'end'(HH:MM).";
 
         try {
             for (const model of modelsToTry) {
                 try {
-                    const parts = [{ text: finalPrompt }];
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                    
+                    const payload = {
+                        contents: [{
+                            parts: [{ text: `${systemInstruction}\n\nInput Context: ${prompt}` }]
+                        }]
+                    };
+
                     if (imageData) {
-                        parts.push({ inline_data: { mime_type: imageData.mimeType, data: imageData.data } });
+                        payload.contents[0].parts.push({
+                            inline_data: { mime_type: imageData.mimeType, data: imageData.data }
+                        });
                     }
 
-                    const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`;
+                    // 1.5 버전 이상의 모델은 JSON 모드 지원
+                    if (model.includes('1.5')) {
+                        payload.generationConfig = { response_mime_type: "application/json" };
+                    }
+
                     const resp = await fetch(url, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ contents: [{ parts }] })
+                        body: JSON.stringify(payload)
                     });
                     
                     const data = await resp.json();
-                    if (data.error) {
-                        console.error(`Model ${model} error:`, data.error.message);
+                    
+                    if (!resp.ok) {
+                        console.error(`API Error (${model}):`, data.error?.message || 'Unknown error');
                         continue;
                     }
 
                     if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
                         let text = data.candidates[0].content.parts[0].text;
-                        text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-                        const startIdx = text.indexOf('[');
-                        const endIdx = text.lastIndexOf(']');
-                        if (startIdx !== -1 && endIdx !== -1) {
-                            return JSON.parse(text.substring(startIdx, endIdx + 1));
+                        
+                        // 정규식을 사용하여 JSON 배열 부분만 추출 (가장 안전한 방법)
+                        const jsonMatch = text.match(/\[[\s\S]*\]/);
+                        if (jsonMatch) {
+                            return JSON.parse(jsonMatch[0]);
+                        } else {
+                            // 마크다운 제거 시도
+                            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                            return JSON.parse(text);
                         }
                     }
                 } catch (innerErr) {
-                    console.warn(`${model} failed:`, innerErr);
+                    console.warn(`Model ${model} failed:`, innerErr);
                 }
             }
-            alert('AI 분석에 실패했습니다. API 키나 모델 설정을 확인해 주세요.');
+            throw new Error('모든 모델이 응답에 실패했습니다. API 키가 유효한지 확인하세요.');
         } catch (outerErr) {
             console.error('Fatal API Error:', outerErr);
-            alert('네트워크 오류가 발생했습니다.');
+            alert(`AI 분석 오류: ${outerErr.message}`);
         } finally {
             hideLoading();
         }
         return null;
     }
+
+    aiTimetableBtn.addEventListener('click', async () => {
+        const text = aiTimetableInput.value.trim();
+        if (!text) return;
+        const result = await callGemini(`텍스트에서 일정을 추출해줘: "${text}"`);
+        if (result) {
+            const processed = processAiEvents(result);
+            if (processed.length > 0) {
+                state.events.push(...processed);
+                localStorage.setItem('timetable_events', JSON.stringify(state.events));
+                aiTimetableInput.value = '';
+                render();
+                alert(`성공적으로 추가됨: ${processed.length}개의 일정`);
+            } else {
+                alert('유효한 일정을 찾지 못했습니다.');
+            }
+        }
+    });
 
     aiImageInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
@@ -347,7 +382,7 @@ Context: ${prompt}`;
         const reader = new FileReader();
         reader.onload = async (event) => {
             const base64Data = event.target.result.split(',')[1];
-            const result = await callGemini("Extract timetable from image.", { mimeType: file.type, data: base64Data });
+            const result = await callGemini("이미지에서 시간표를 추출해줘.", { mimeType: file.type, data: base64Data });
             if (result) {
                 const processed = processAiEvents(result);
                 if (processed.length > 0) {
@@ -362,29 +397,14 @@ Context: ${prompt}`;
         reader.readAsDataURL(file);
     });
 
-    aiTimetableBtn.addEventListener('click', async () => {
-        const text = aiTimetableInput.value.trim();
-        if (!text) return;
-        const result = await callGemini(`Extract timetable from: "${text}"`);
-        if (result) {
-            const processed = processAiEvents(result);
-            if (processed.length > 0) {
-                state.events.push(...processed);
-                localStorage.setItem('timetable_events', JSON.stringify(state.events));
-                aiTimetableInput.value = '';
-                render();
-                alert(`성공적으로 추가됨: ${processed.length}개의 일정`);
-            }
-        }
-    });
-
     generateBtn.addEventListener('click', async () => {
-        const prompt = `Create a study schedule. Goal: ${document.getElementById('final-goal').value}, Level: ${document.getElementById('learner-level').value}, Hours: ${document.getElementById('target-hours').value}, Subjects: ${document.getElementById('target-subjects').value}, Fixed Events: ${JSON.stringify(state.events)}`;
+        const prompt = `학습 계획 생성 요청. 목표: ${document.getElementById('final-goal').value}, 수준: ${document.getElementById('learner-level').value}, 시간: ${document.getElementById('target-hours').value}, 과목: ${document.getElementById('target-subjects').value}, 고정 일정: ${JSON.stringify(state.events)}`;
         const result = await callGemini(prompt);
         if (result) {
             state.aiTasks = result.map(t => ({ ...t, completed: false }));
             localStorage.setItem('ai_tasks', JSON.stringify(state.aiTasks));
             render();
+            alert('AI가 새로운 학습 계획을 생성했습니다!');
         }
     });
 
