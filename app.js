@@ -287,10 +287,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return null; 
         }
 
-        const baseModel = localStorage.getItem('gemini_model') || 'gemini-1.5-flash';
-        // 모델 이름 호환성 보정
-        const targetModel = baseModel === 'gemini-1.0-pro' ? 'gemini-pro' : baseModel;
-        const modelsToTry = [targetModel, 'gemini-1.5-flash', 'gemini-pro'];
+        const baseModel = localStorage.getItem('gemini_model') || 'gemini-2.0-flash';
+        const modelsToTry = [baseModel, 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
 
         showLoading();
 
@@ -313,10 +311,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
 
-                    // 1.5 버전 이상의 모델은 JSON 모드 지원
-                    if (model.includes('1.5')) {
-                        payload.generationConfig = { response_mime_type: "application/json" };
-                    }
+                    // 모든 최신 모델(2.0, 1.5)에서 JSON 모드 지원
+                    payload.generationConfig = { response_mime_type: "application/json" };
 
                     const resp = await fetch(url, {
                         method: 'POST',
