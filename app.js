@@ -245,7 +245,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function callGemini(prompt, imageData = null) {
         const apiKey = localStorage.getItem('gemini_api_key');
-        if (!apiKey) { alert('설정에서 API 키를 먼저 입력해 주세요!'); return null; }
+        if (!apiKey) { 
+            alert('설정(⚙️) 탭에서 Gemini API 키를 먼저 입력해 주세요!'); 
+            document.querySelector('[data-tab="settings"]').click();
+            return null; 
+        }
         loadingQuote.innerText = quotes[Math.floor(Math.random() * quotes.length)];
         loadingOverlay.classList.remove('hidden');
         try {
@@ -259,7 +263,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+            // 모델 인식 오류 해결을 위해 v1beta와 gemini-1.5-flash 명칭 사용
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
             const resp = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -267,10 +272,24 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const data = await resp.json();
             hideLoading();
+            
             if (data.error) {
+                // 특정 모델 오류 메시지 대응
+                if (data.error.message.includes('not found') || data.error.message.includes('not supported')) {
+                    throw new Error(`모델 인식 오류: 사용 중인 API 키가 'gemini-1.5-flash' 모델을 지원하지 않거나 엔드포인트가 일시적으로 제한되었습니다. (${data.error.message})`);
+                }
                 throw new Error(data.error.message);
             }
-            return JSON.parse(data.candidates[0].content.parts[0].text);
+
+            if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+                throw new Error('AI가 유효한 응답을 생성하지 못했습니다. 다시 시도해 주세요.');
+            }
+
+            let responseText = data.candidates[0].content.parts[0].text;
+            // JSON 응답 내의 마크다운 태그 제거 (필요 시)
+            responseText = responseText.replace(/```json|```/g, '').trim();
+            
+            return JSON.parse(responseText);
         } catch (err) {
             console.error(err);
             hideLoading();
@@ -279,6 +298,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     function hideLoading() { loadingOverlay.classList.add('hidden'); }
+
+    // API 가이드 토글
+    const howToApiBtn = document.getElementById('how-to-api-btn');
+    const apiGuide = document.getElementById('api-guide');
+    if (howToApiBtn && apiGuide) {
+        howToApiBtn.onclick = () => apiGuide.classList.toggle('hidden');
+    }
 
     aiImageInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
