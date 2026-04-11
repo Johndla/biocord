@@ -274,10 +274,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }).filter(ev => !isNaN(ev.day) && ev.start.includes(':') && ev.end.includes(':'));
     }
 
-    async function callGemini(prompt, imageData = null) {
+    async function callGemini(prompt, systemInstruction = "You are a professional timetable parser. Output ONLY a valid JSON array of objects. Keys: 'name'(string), 'day'(number 0-6), 'start'(HH:MM), 'end'(HH:MM).", imageData = null) {
         const WORKER_URL = 'https://deploy.ljc71212.workers.dev';
-        const systemInstruction = "You are a professional timetable parser. Output ONLY a valid JSON array of objects. Keys: 'name'(string), 'day'(number 0-6), 'start'(HH:MM), 'end'(HH:MM).";
-        
         showLoading();
 
         try {
@@ -289,10 +287,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const payload = {
-                model: 'gemini-3.1-flash-lite-preview',
-                prompt,
-                imageData,
-                systemInstruction
+                contents: [{ parts }],
+                generationConfig: { response_mime_type: "application/json" }
             };
 
             const resp = await fetch(`${WORKER_URL}?model=gemini-3.1-flash-lite-preview`, {
@@ -302,23 +298,9 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             const data = await resp.json();
-
-            if (!resp.ok) {
-                throw new Error(data.error?.message || `서버 오류 (${resp.status})`);
-            }
-
-            if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
-                let text = data.candidates[0].content.parts[0].text;
-                const jsonMatch = text.match(/\[[\s\S]*\]/);
-                if (jsonMatch) {
-                    return JSON.parse(jsonMatch[0]);
-                } else {
-                    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-                    return JSON.parse(text);
-                }
-            }
-
-            throw new Error('AI 응답을 파싱할 수 없습니다.');
+            if (!resp.ok) throw new Error(data.error?.message || `서버 오류 (${resp.status})`);
+            
+            return typeof data.result === 'string' ? JSON.parse(data.result) : (data.result || data);
         } catch (err) {
             console.error('API Error:', err);
             alert(`AI 분석 오류: ${err.message}`);
