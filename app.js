@@ -289,12 +289,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const payload = {
-                model: 'gemini-3.1-flash-lite',
+                model: 'gemini-3.1-flash-lite-preview',
                 contents: [{ parts }],
                 generationConfig: { response_mime_type: "application/json" }
             };
 
-            const resp = await fetch(`${WORKER_URL}?model=gemini-3.1-flash-lite`, {
+            const resp = await fetch(`${WORKER_URL}?model=gemini-3.1-flash-lite-preview`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
