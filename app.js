@@ -294,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 generationConfig: { response_mime_type: "application/json" }
             };
 
-            const resp = await fetch(WORKER_URL, {
+            const resp = await fetch(`${WORKER_URL}?model=gemini-3.1-flash-lite`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
