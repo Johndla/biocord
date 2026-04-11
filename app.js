@@ -281,11 +281,17 @@ document.addEventListener('DOMContentLoaded', () => {
         showLoading();
 
         try {
+            const parts = [{ text: `${systemInstruction}\n\nInput Context: ${prompt}` }];
+            if (imageData) {
+                parts.push({
+                    inline_data: { mime_type: imageData.mimeType, data: imageData.data }
+                });
+            }
+
             const payload = {
-                prompt,
                 model: 'gemini-3.1-flash-lite',
-                imageData,
-                systemInstruction
+                contents: [{ parts }],
+                generationConfig: { response_mime_type: "application/json" }
             };
 
             const resp = await fetch(WORKER_URL, {
