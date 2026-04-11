@@ -286,10 +286,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
-            const payload = {
-                contents: [{ parts }],
-                generationConfig: { response_mime_type: "application/json" }
-            };
+            // 워커가 구조를 자동으로 인식하도록 contents 필드로 전송
+            const payload = { contents: [{ parts }] };
 
             const resp = await fetch(`${WORKER_URL}?model=gemini-3.1-flash-lite-preview`, {
                 method: 'POST',
@@ -300,7 +298,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await resp.json();
             if (!resp.ok) throw new Error(data.error?.message || `서버 오류 (${resp.status})`);
             
-            return typeof data.result === 'string' ? JSON.parse(data.result) : (data.result || data);
+            // 워커에서 반환된 data.result를 해석
+            const candidates = data.result?.candidates || data.candidates;
+            const text = candidates[0].content.parts[0].text;
+            return JSON.parse(text.replace(/```json/g, '').replace(/```/g, ''));
         } catch (err) {
             console.error('API Error:', err);
             alert(`AI 분석 오류: ${err.message}`);
