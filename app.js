@@ -59,10 +59,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 5. 기능: 캘린더 초기화
+    // 5. 기능: 캘린더 초기화 (월요일 시작)
     function initCalendar() {
         calendarGrid.innerHTML = '';
-        ['시간', '일', '월', '화', '수', '목', '금', '토'].forEach(day => {
+        ['시간', '월', '화', '수', '목', '금', '토', '일'].forEach(day => {
             const header = document.createElement('div');
             header.className = 'calendar-header';
             header.innerText = day;
@@ -74,11 +74,12 @@ document.addEventListener('DOMContentLoaded', () => {
             label.className = 'time-label';
             label.innerText = `${hour}:00`;
             calendarGrid.appendChild(label);
-            for (let day = 0; day < 7; day++) {
+            for (let day = 1; day <= 7; day++) {
+                const dayIndex = day === 7 ? 0 : day;
                 const cell = document.createElement('div');
                 cell.className = 'grid-cell';
                 cell.dataset.time = `${hour}:00`;
-                cell.dataset.day = day;
+                cell.dataset.day = dayIndex;
                 calendarGrid.appendChild(cell);
             }
         }
@@ -88,7 +89,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 6. 설정 관리
     const dashboardTitle = document.getElementById('dashboard-title');
     const dashboardNameInput = document.getElementById('dashboard-name');
-    const apiKeyInput = document.getElementById('api-key');
     const modelSelect = document.getElementById('ai-model-select');
     const themeRadios = document.querySelectorAll('input[name="theme"]');
 
@@ -100,12 +100,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadSettings() {
         const title = localStorage.getItem('dashboard_title') || '';
         const theme = localStorage.getItem('theme') || 'dark';
-        const apiKey = localStorage.getItem('gemini_api_key') || '';
-        const model = localStorage.getItem('gemini_model') || 'gemini-1.5-flash';
+        const model = localStorage.getItem('gemini_model') || 'gemini-3.1-flash-lite';
 
         dashboardNameInput.value = title;
         dashboardTitle.innerText = title || '제목을 지어주세요.';
-        apiKeyInput.value = apiKey;
         modelSelect.value = model;
         
         applyTheme(theme);
@@ -122,10 +120,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     themeRadios.forEach(radio => {
         radio.addEventListener('change', (e) => applyTheme(e.target.value));
-    });
-
-    apiKeyInput.addEventListener('input', () => {
-        localStorage.setItem('gemini_api_key', apiKeyInput.value.trim());
     });
 
     modelSelect.addEventListener('change', () => {
@@ -177,8 +171,9 @@ document.addEventListener('DOMContentLoaded', () => {
         block.style.top = `${top}px`;
         block.style.height = `${Math.max(height, 35)}px`;
 
+        const dayToCol = item.day === 0 ? 7 : item.day;
         const target = Array.from(calendarGrid.querySelectorAll('.grid-cell')).find(c => 
-            parseInt(c.dataset.day) === parseInt(item.day) && parseInt(c.dataset.time.split(':')[0]) === sh
+            parseInt(c.dataset.day) === dayToCol && parseInt(c.dataset.time.split(':')[0]) === sh
         );
         if (target) {
             target.appendChild(block);
@@ -280,79 +275,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function callGemini(prompt, imageData = null) {
-        let apiKey = (localStorage.getItem('gemini_api_key') || '').trim();
-        if (!apiKey) { 
-            alert('설정(⚙️) 탭에서 Gemini API 키를 먼저 입력해 주세요!'); 
-            document.querySelector('[data-tab="settings"]').click();
-            return null; 
-        }
-
-        const baseModel = localStorage.getItem('gemini_model') || 'gemini-3.1-flash-lite';
-        const modelsToTry = [baseModel, 'gemini-3.1-flash-lite', 'gemini-3-flash-preview'];
+        const model = localStorage.getItem('gemini_model') || 'gemini-3.1-flash-lite';
+        const url = 'https://deploy.ljc71212.workers.dev/';
 
         showLoading();
 
-        const systemInstruction = "You are a professional timetable parser. Output ONLY a valid JSON array of objects. Keys: 'name'(string), 'day'(number 0-6), 'start'(HH:MM), 'end'(HH:MM).";
-
         try {
-            for (const model of modelsToTry) {
-                try {
-                    // 429 에러 방지를 위해 모델 시도 간 1초 지연
-                    if (modelsToTry.indexOf(model) > 0) {
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                    }
-
-                    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-                    
-                    const payload = {
-                        contents: [{
-                            parts: [{ text: `${systemInstruction}\n\nInput Context: ${prompt}` }]
-                        }]
-                    };
-
-                    if (imageData) {
-                        payload.contents[0].parts.push({
-                            inline_data: { mime_type: imageData.mimeType, data: imageData.data }
-                        });
-                    }
-
-                    // 최신 모델들은 JSON 모드 지원
-                    payload.generationConfig = { response_mime_type: "application/json" };
-
-                    const resp = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                    
-                    const data = await resp.json();
-                    
-                    if (!resp.ok) {
-                        console.error(`API Error (${model}):`, data.error?.message || 'Unknown error');
-                        continue;
-                    }
-
-                    if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
-                        let text = data.candidates[0].content.parts[0].text;
-                        
-                        // 정규식을 사용하여 JSON 배열 부분만 추출 (가장 안전한 방법)
-                        const jsonMatch = text.match(/\[[\s\S]*\]/);
-                        if (jsonMatch) {
-                            return JSON.parse(jsonMatch[0]);
-                        } else {
-                            // 마크다운 제거 시도
-                            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-                            return JSON.parse(text);
-                        }
-                    }
-                } catch (innerErr) {
-                    console.warn(`Model ${model} failed:`, innerErr);
-                }
-            }
-            throw new Error('모든 모델이 응답에 실패했습니다. API 키가 유효한지 확인하세요.');
-        } catch (outerErr) {
-            console.error('Fatal API Error:', outerErr);
-            alert(`AI 분석 오류: ${outerErr.message}`);
+            const payload = { prompt, model, imageData };
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            if (!resp.ok) throw new Error('API 서버 통신 오류');
+            const data = await resp.json();
+            return data.result;
+        } catch (err) {
+            console.error('AI 분석 오류:', err);
+            alert('AI 분석 오류가 발생했습니다.');
         } finally {
             hideLoading();
         }
