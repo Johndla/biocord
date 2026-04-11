@@ -275,25 +275,52 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function callGemini(prompt, imageData = null) {
-        const model = localStorage.getItem('gemini_model') || 'gemini-3.1-flash-lite';
-        const url = 'https://deploy.ljc71212.workers.dev/';
-
+        const WORKER_URL = 'https://deploy.ljc71212.workers.dev';
+        const systemInstruction = "You are a professional timetable parser. Output ONLY a valid JSON array of objects. Keys: 'name'(string), 'day'(number 0-6), 'start'(HH:MM), 'end'(HH:MM).";
+        
         showLoading();
 
         try {
-            const payload = { prompt, model, imageData };
-            const resp = await fetch(url, {
+            const payload = {
+                contents: [{
+                    parts: [{ text: `${systemInstruction}\n\nInput Context: ${prompt}` }]
+                }],
+                generationConfig: { response_mime_type: "application/json" }
+            };
+
+            if (imageData) {
+                payload.contents[0].parts.push({
+                    inline_data: { mime_type: imageData.mimeType, data: imageData.data }
+                });
+            }
+
+            const resp = await fetch(WORKER_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            
-            if (!resp.ok) throw new Error('API 서버 통신 오류');
+
             const data = await resp.json();
-            return data.result;
+
+            if (!resp.ok) {
+                throw new Error(data.error?.message || `서버 오류 (${resp.status})`);
+            }
+
+            if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
+                let text = data.candidates[0].content.parts[0].text;
+                const jsonMatch = text.match(/\[[\s\S]*\]/);
+                if (jsonMatch) {
+                    return JSON.parse(jsonMatch[0]);
+                } else {
+                    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                    return JSON.parse(text);
+                }
+            }
+
+            throw new Error('AI 응답을 파싱할 수 없습니다.');
         } catch (err) {
-            console.error('AI 분석 오류:', err);
-            alert('AI 분석 오류가 발생했습니다.');
+            console.error('API Error:', err);
+            alert(`AI 분석 오류: ${err.message}`);
         } finally {
             hideLoading();
         }
