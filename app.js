@@ -314,7 +314,8 @@ document.addEventListener('DOMContentLoaded', () => {
     aiTimetableBtn.addEventListener('click', async () => {
         const text = aiTimetableInput.value.trim();
         if (!text) return;
-        const result = await callGemini(`텍스트에서 일정을 추출해줘: "${text}"`);
+        const systemInstruction = "당신은 시간표 파서입니다. 무조건 JSON 배열 형식(name, day(1-7), start(HH:MM), end(HH:MM))으로만 응답하세요. 다른 설명은 하지 마세요.";
+        const result = await callGemini(`다음 텍스트에서 일정을 JSON으로 추출해줘: "${text}"`, systemInstruction);
         if (result) {
             const processed = processAiEvents(result);
             if (processed.length > 0) {
@@ -335,7 +336,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const reader = new FileReader();
         reader.onload = async (event) => {
             const base64Data = event.target.result.split(',')[1];
-            const result = await callGemini("이미지에서 시간표를 추출해줘.", { mimeType: file.type, data: base64Data });
+            const systemInstruction = "당신은 이미지 전문 시간표 파서입니다. 이미지에서 시간표를 분석하여 무조건 JSON 배열 형식(name, day(1-7), start(HH:MM), end(HH:MM))으로만 응답하세요.";
+            const result = await callGemini("이미지에서 시간표를 추출해줘.", systemInstruction, { mimeType: file.type, data: base64Data });
             if (result) {
                 const processed = processAiEvents(result);
                 if (processed.length > 0) {
